@@ -1,0 +1,23 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_sales_shipment_allocate_wms
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: shipment_allocation_for_transfer_transit_only
+grain: shipment allocation and SKU
+aggregate_key: [outbound_code, sku_code, wms_code]
+fields:
+  outbound_code: {type: string, role: shipment_key}
+  cargo_owner_id: {type: string, role: cargo_owner}
+  sku_code: {type: string, role: sku_key}
+  wms_code: {type: string, role: warehouse_key}
+  allocate_qty: {type: decimal, role: allocation_quantity, description: Allocation quantity; not actual ship quantity.}
+  updated_date: {type: datetime, role: freshness_timestamp}
+join_to:
+  table: ywzt_ods.scm_transfer_order_header
+  "on": a.transfer_order_code = h.transfer_order_code
+  cardinality: many_to_one
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_sales_shipment_allocate_wms.yaml
+  semantic_changes_require_approval: true

@@ -1,0 +1,461 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-28T09:00:00+08:00",
+  "collection_status": "complete",
+  "origin": "doris-information-schema-fixture",
+  "tables": [
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_return_order_header",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "return_order_code", "data_type": "varchar"},
+        {"column_name": "ref_order_code", "data_type": "varchar"},
+        {"column_name": "facility_code", "data_type": "varchar"},
+        {"column_name": "status", "data_type": "int"},
+        {"column_name": "request_refund_amount", "data_type": "decimal"},
+        {"column_name": "actual_refund_amount", "data_type": "decimal"},
+        {"column_name": "created_date", "data_type": "datetime"},
+        {"column_name": "updated_date", "data_type": "datetime"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [{"field":"updated_date","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_return_order_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "return_order_code", "data_type": "varchar"},
+        {"column_name": "ref_order_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "fulfill_qty", "data_type": "int"},
+        {"column_name": "status", "data_type": "int"},
+        {"column_name": "total_amount", "data_type": "decimal"},
+        {"column_name": "source_pay_amount", "data_type": "decimal"},
+        {"column_name": "settlement_amount", "data_type": "decimal"},
+        {"column_name": "created_date", "data_type": "datetime"},
+        {"column_name": "updated_date", "data_type": "datetime"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [{"field":"updated_date","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "dms_ods",
+      "table_name": "t_employee",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "employee_id", "data_type": "bigint"},
+        {"column_name": "actual_name", "data_type": "varchar"},
+        {"column_name": "deleted_flag", "data_type": "int"},
+        {"column_name": "update_time", "data_type": "datetime"}
+      ],
+      "freshness": [{"field": "update_time", "max_value": "2026-08-28 08:59:00", "status": "ok"}]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "master_sku_unit",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"id","data_type":"varchar"},
+        {"column_name":"cargo_owner_id","data_type":"varchar"},
+        {"column_name":"sku_code","data_type":"varchar"},
+        {"column_name":"unit","data_type":"varchar"},
+        {"column_name":"ea_convert_quantity","data_type":"int"},
+        {"column_name":"status","data_type":"varchar"},
+        {"column_name":"updated_date","data_type":"datetime"}
+      ],
+      "freshness": [{"field":"updated_date","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "master_store",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"company_code","data_type":"varchar"},
+        {"column_name":"code","data_type":"varchar"},
+        {"column_name":"name","data_type":"varchar"},
+        {"column_name":"updated","data_type":"datetime"},
+        {"column_name":"type","data_type":"varchar"},
+        {"column_name":"platform_code","data_type":"varchar"},
+        {"column_name":"group1","data_type":"varchar"},
+        {"column_name":"price_group","data_type":"varchar"},
+        {"column_name":"status","data_type":"int"}
+      ],
+      "freshness": [{"field":"updated","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "dms_ods",
+      "table_name": "t_sales_order",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "owner_manager", "data_type": "varchar"},
+        {"column_name": "province_department_name", "data_type": "varchar"},
+        {"column_name": "customer_code", "data_type": "varchar"},
+        {"column_name": "customer_name", "data_type": "varchar"},
+        {"column_name": "sales_order_code", "data_type": "varchar"},
+        {"column_name": "order_type", "data_type": "varchar"},
+        {"column_name": "paid_status", "data_type": "varchar"},
+        {"column_name": "paid_time", "data_type": "datetime"},
+        {"column_name": "order_status", "data_type": "varchar"},
+        {"column_name": "after_sales_status", "data_type": "varchar"},
+        {"column_name": "is_points_order", "data_type": "tinyint"},
+        {"column_name": "deleted_flag", "data_type": "int"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"},
+        {"column_name": "id", "data_type": "bigint"},
+        {"column_name": "version", "data_type": "int"},
+        {"column_name": "created_time", "data_type": "datetime"},
+        {"column_name": "updated_time", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "updated_time", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "dms_ods",
+      "table_name": "t_sales_order_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "sales_order_code", "data_type": "varchar"},
+        {"column_name": "item_code", "data_type": "varchar"},
+        {"column_name": "item_type", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "sku_name", "data_type": "varchar"},
+        {"column_name": "bag_quantity", "data_type": "decimal"},
+        {"column_name": "deleted_flag", "data_type": "int"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"},
+        {"column_name": "id", "data_type": "bigint"},
+        {"column_name": "version", "data_type": "int"},
+        {"column_name": "created_time", "data_type": "datetime"},
+        {"column_name": "updated_time", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "updated_time", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "master_sku",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "sku_name", "data_type": "varchar"},
+        {"column_name": "sku_group", "data_type": "varchar"},
+        {"column_name": "net_weight", "data_type": "decimal"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "master_wms",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "wms_desc", "data_type": "varchar"},
+        {"column_name": "wms_node", "data_type": "varchar"},
+        {"column_name": "wms_type", "data_type": "varchar"},
+        {"column_name": "belonging_center", "data_type": "varchar"},
+        {"column_name": "senior_wms", "data_type": "varchar"},
+        {"column_name": "wms_status", "data_type": "varchar"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "updated_date", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "updated_date", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_order_header",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "sales_order_code", "data_type": "varchar"},
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "facility_code", "data_type": "varchar"},
+        {"column_name": "store_code", "data_type": "varchar"},
+        {"column_name": "store_name", "data_type": "varchar"},
+        {"column_name": "order_type", "data_type": "varchar"},
+        {"column_name": "source_order_code", "data_type": "varchar"},
+        {"column_name": "source_platform_code", "data_type": "varchar"},
+        {"column_name": "currency_code", "data_type": "varchar"},
+        {"column_name": "total_pay_amount", "data_type": "decimal"},
+        {"column_name": "created", "data_type": "datetime"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "deleted_flag", "data_type": "int"},
+        {"column_name": "updated", "data_type": "datetime"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [
+        {"field": "updated", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_order_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "sales_order_id", "data_type": "varchar"},
+        {"column_name": "sales_order_code", "data_type": "varchar"},
+        {"column_name": "source_order_code", "data_type": "varchar"},
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "facility_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "sku_name", "data_type": "varchar"},
+        {"column_name": "request_qty", "data_type": "int"},
+        {"column_name": "ship_qty", "data_type": "int"},
+        {"column_name": "total_pay_amount", "data_type": "decimal"},
+        {"column_name": "allocated_qty", "data_type": "int"},
+        {"column_name": "quantity_u_m", "data_type": "varchar"},
+        {"column_name": "sales_unit_qty", "data_type": "decimal"},
+        {"column_name": "sales_unit", "data_type": "varchar"},
+        {"column_name": "status", "data_type": "int"},
+        {"column_name": "created", "data_type": "datetime"},
+        {"column_name": "updated", "data_type": "datetime"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [
+        {"field": "updated", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_shipment_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "outbound_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "sku_name", "data_type": "varchar"},
+        {"column_name": "ship_qty", "data_type": "decimal"},
+        {"column_name": "delete_flag", "data_type": "int"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_shipment_header",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "outbound_code", "data_type": "varchar"},
+        {"column_name": "ship_at", "data_type": "datetime"},
+        {"column_name": "status", "data_type": "int"},
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "delete_flag", "data_type": "int"},
+        {"column_name": "facility_code", "data_type": "varchar"},
+        {"column_name": "ref_order_code", "data_type": "varchar"},
+        {"column_name": "ref_order_type", "data_type": "varchar"},
+        {"column_name": "terms_of_shipment", "data_type": "varchar"},
+        {"column_name": "store_code", "data_type": "varchar"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [
+        {"field": "ship_at", "max_value": "2026-08-28 08:55:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_header",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "warehous_code", "data_type": "varchar"},
+        {"column_name": "po_order_code", "data_type": "varchar"},
+        {"column_name": "warehous_type", "data_type": "varchar"},
+        {"column_name": "actual_arrival_date", "data_type": "datetime"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"},
+        {"column_name": "updated_date", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "updated_date", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "warehous_code", "data_type": "varchar"},
+        {"column_name": "item_code", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "batch_number", "data_type": "varchar"},
+        {"column_name": "production_date", "data_type": "datetime"},
+        {"column_name": "received_quantity", "data_type": "decimal"},
+        {"column_name": "unit", "data_type": "varchar"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"},
+        {"column_name": "updated_date", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "updated_date", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_manage_backups",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "backups_date", "data_type": "date"},
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "in_stock_quantity", "data_type": "decimal"}
+      ],
+      "freshness": [
+        {"field": "backups_date", "max_value": "2026-08-27", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_manage",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "in_stock_quantity", "data_type": "decimal"},
+        {"column_name": "allot_quantity", "data_type": "decimal"},
+        {"column_name": "stock_lock", "data_type": "varchar"},
+        {"column_name": "lock_quantity", "data_type": "decimal"},
+        {"column_name": "freeze_quantity", "data_type": "decimal"},
+        {"column_name": "move_in_quantity", "data_type": "decimal"},
+        {"column_name": "actual_quantity", "data_type": "decimal"},
+        {"column_name": "move_out_quantity", "data_type": "decimal"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "inventory_status", "data_type": "varchar"},
+        {"column_name": "stock_change_time", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "stock_change_time", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_occupy",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "pre_order_code", "data_type": "varchar"},
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "lock_quantity", "data_type": "decimal"},
+        {"column_name": "freeze_quantity", "data_type": "decimal"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "created_date", "data_type": "datetime"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_po_header",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"po_code","data_type":"varchar"},
+        {"column_name":"cargo_owner_id","data_type":"varchar"},
+        {"column_name":"take_delivery_wms","data_type":"varchar"},
+        {"column_name":"order_status","data_type":"varchar"},
+        {"column_name":"updated_date","data_type":"datetime"}
+      ],
+      "freshness": [{"field":"updated_date","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_po_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"po_code","data_type":"varchar"},
+        {"column_name":"sku_code","data_type":"varchar"},
+        {"column_name":"request_quantity","data_type":"decimal"},
+        {"column_name":"status","data_type":"varchar"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_transfer_order_header",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"transfer_order_code","data_type":"varchar"},
+        {"column_name":"outbound_code","data_type":"varchar"},
+        {"column_name":"sender_cargo_owner","data_type":"varchar"},
+        {"column_name":"receiver_cargo_owner","data_type":"varchar"},
+        {"column_name":"delivery_wms","data_type":"varchar"},
+        {"column_name":"receive_wms","data_type":"varchar"},
+        {"column_name":"order_status","data_type":"varchar"},
+        {"column_name":"updated","data_type":"datetime"}
+      ],
+      "freshness": [{"field":"updated","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_transfer_order_detail",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"transfer_order_code","data_type":"varchar"},
+        {"column_name":"sku_code","data_type":"varchar"},
+        {"column_name":"updated","data_type":"datetime"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_shipment_allocate_wms",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"outbound_code","data_type":"varchar"},
+        {"column_name":"cargo_owner_id","data_type":"varchar"},
+        {"column_name":"sku_code","data_type":"varchar"},
+        {"column_name":"wms_code","data_type":"varchar"},
+        {"column_name":"allocate_qty","data_type":"decimal"},
+        {"column_name":"updated_date","data_type":"datetime"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_stock_history",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name":"wms_code","data_type":"varchar"},
+        {"column_name":"sku_code","data_type":"varchar"},
+        {"column_name":"cargo_owner_id","data_type":"varchar"},
+        {"column_name":"created_date","data_type":"datetime"}
+      ],
+      "freshness": [{"field":"created_date","max_value":"2026-08-28 08:59:00","status":"ok"}]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "sku_inventory",
+      "table_type": "BASE TABLE",
+      "columns": [
+        {"column_name": "owner", "data_type": "varchar"},
+        {"column_name": "wms_desc", "data_type": "varchar"},
+        {"column_name": "sku_name", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "available_quantity", "data_type": "decimal"},
+        {"column_name": "total_quantity", "data_type": "decimal"},
+        {"column_name": "instock_quantity", "data_type": "decimal"},
+        {"column_name": "in_transit_quantity", "data_type": "decimal"},
+        {"column_name": "allocated_quantity", "data_type": "decimal"},
+        {"column_name": "today_outbound", "data_type": "decimal"},
+        {"column_name": "yesterday_outbound", "data_type": "decimal"},
+        {"column_name": "seven_days_outbound", "data_type": "decimal"},
+        {"column_name": "available_days", "data_type": "decimal"},
+        {"column_name": "locked_quantity", "data_type": "decimal"},
+        {"column_name": "frozen_quantity", "data_type": "decimal"},
+        {"column_name": "business_platform_occupied", "data_type": "decimal"},
+        {"column_name": "purchase_in_transit", "data_type": "decimal"},
+        {"column_name": "transfer_in_transit", "data_type": "decimal"}
+      ],
+      "freshness": [
+        {"field": "ingestion_update_time", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    }
+  ]
+}

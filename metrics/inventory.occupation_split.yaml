@@ -1,0 +1,58 @@
+contract_schema_version: 1.0.0
+id: inventory.occupation_split
+version: 1.0.0
+status: candidate
+business_concept: inventory.occupation
+variant: transfer_vs_sales_freeze_quantity
+display_name: Inventory occupation split by transfer reference
+aliases: [inventory occupation split, transfer occupation, sales occupation]
+business_definition: Aggregate freeze_quantity from valid occupation records and split it into transfer occupation and sales occupation. A pre_order_code beginning with HJXH-TH is transfer occupation; every other valid reference, including a missing reference, is sales occupation.
+nearby_metrics_not_equivalent: [inventory.components, inventory.available_realtime, sales.outbound_actual]
+applicability:
+  applicable_when: [The request explicitly asks for occupation split and supplies an occupation lookback window.]
+  not_applicable_when: [The request asks for available stock, historical stock, transit stock or allocation quantity.]
+clarification:
+  ambiguity_group: occupation_measure
+  question: Occupation uses freeze_quantity, not lock_quantity or shipment allocation quantity. A different basis must be separately approved.
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: live_route_regression
+  approved_by: null
+  approved_at: null
+grain: One aggregate row per requested owner, warehouse, SKU and observation window; no inventory join is used.
+unit: EA; no box, weight or cross-unit conversion
+time_window:
+  field: o.created_date
+  interval: "[occupation_since, observed_at)"
+  timezone: Asia/Shanghai
+  default_lookback_days: 60
+formula:
+  transfer_occupation: SUM(freeze_quantity) where normalized pre_order_code LIKE 'HJXH-TH%'
+  sales_occupation: SUM(freeze_quantity) where normalized pre_order_code is null or does not match the transfer prefix
+  occupation_total: transfer_occupation + sales_occupation
+  associated_order_count: COUNT(DISTINCT nonblank pre_order_code)
+sources:
+  required: [ywzt_ods.scm_warehous_occupy]
+parameters:
+  owner_code: {required: false, default: ALL}
+  warehouse_code: {required: false, default: ALL}
+  sku_code: {required: false, default: ALL}
+  occupation_since: {required: true, type: datetime}
+  observed_at: {required: true, type: datetime}
+filters:
+  status: "TRIM(CAST(status AS STRING)) <> '1'"
+  measure: "freeze_quantity; allocate_qty and lock_quantity are not substitutes"
+  reference_normalization: Blank and null pre_order_code are sales occupation but do not count as associated orders.
+  scope: Unmentioned owner, warehouse and SKU dimensions are ALL for the current request and are never inherited.
+  freshness: created_date bounds the business event only; source ingestion freshness remains a separate diagnostic.
+  reconciliation:
+    - transfer_occupation plus sales_occupation must equal occupation_total exactly.
+    - Negative source quantities are a data-quality failure, not silently clipped.
+    - Source row count and missing-reference count are retained as controls.
+    - A successful empty result is no_data and must not be represented as a fabricated business quantity.
+required_validations: [single_statement_and_read_only, business_date_semantics, control_total_reconciliation]
+execution: {mode: sql_template, template: app/agent_core/handlers/occupation.py}
+notes: Candidate contract for the explicit occupation-split route. Publish after business approval and release-manifest update.
+updated_at: '2026-09-18'

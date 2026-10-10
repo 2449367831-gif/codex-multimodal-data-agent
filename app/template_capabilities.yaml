@@ -1,0 +1,61 @@
+version: 1.0.0
+metrics:
+  sales.sku_name_quality@1.0.0:
+    executable: true
+    mode: composite
+    output_grains: [cargo_owner_sku]
+  sales.outbound_boxes@1.0.0:
+    executable: true
+    mode: composite
+    output_grains: [date_owner_warehouse_sku_customer_channel]
+  sales.finished_goods_exceptions@1.0.0:
+    executable: true
+    mode: composite
+    output_grains: [sku]
+  purchase.received_detail@1.0.1:
+    executable: true
+    output_grains: [receipt_detail]
+  sales_order.so07_detail@1.0.0:
+    executable: true
+    output_grains: [order_detail]
+  dms.points_redemption@1.0.0:
+    executable: true
+    output_grains: [total, payment_month, sku]
+  sales.outbound_actual@1.0.0:
+    executable: true
+    output_grains: [total]
+  sales.outbound_actual@2.0.0:
+    executable: true
+    output_grains: [total]
+  inventory.available_realtime@1.0.0:
+    executable: true
+    output_grains: [warehouse_sku]
+  inventory.snapshot_quantity@1.0.0:
+    executable: true
+    output_grains: [warehouse_sku]
+  inventory.finished_goods_realtime@2.0.0:
+    executable: true
+    output_grains: [warehouse_sku]
+  inventory.finished_goods_snapshot@1.0.0:
+    executable: true
+    output_grains: [warehouse_sku]
+  inventory.turnover_finished_goods_realtime@1.0.0:
+    executable: false
+    reason: Composite metric is executed from its governed component contracts.
+  inventory.turnover_finished_goods_snapshot@1.0.0:
+    executable: false
+    reason: Composite metric is executed from its governed component contracts.
+  inventory.turnover_mtd_realtime@1.0.0:
+    executable: false
+    reason: Current file documents the composite expression but is not an executable SQL template.
+  inventory.turnover_mtd_realtime@2.0.0:
+    executable: false
+    reason: Current file documents the composite expression but is not an executable SQL template.
+  inventory.turnover_7d_realtime@1.1.0:
+    executable: true
+    mode: composite
+    output_grains: [center_and_subwarehouse]
+  inventory.turnover_7d_realtime@2.0.0:
+    executable: true
+    mode: composite
+    output_grains: [center_and_subwarehouse]

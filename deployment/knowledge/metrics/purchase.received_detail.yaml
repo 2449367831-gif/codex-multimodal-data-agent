@@ -1,0 +1,71 @@
+contract_schema_version: 1.0.0
+id: purchase.received_detail
+version: 1.0.1
+status: active
+business_concept: purchase.receipt_quantity
+variant: production_window_detail
+display_name: 生产日期窗口采购入库明细
+aliases: [采购入库明细, 生产日期采购入库]
+business_definition: Actual received receipt lines selected by production date and a separate actual-arrival cutoff. Procurement classification is an explicit version choice, not a globally inferred default.
+nearby_metrics_not_equivalent: [purchase_plan_quantity, inbound_summary_by_arrival_date, transfer_receipt_quantity]
+applicability:
+  applicable_when: [Receipt details are requested by production date with a separate actual-arrival cutoff.]
+  not_applicable_when: [The requested measure is planned purchase quantity or only arrival-date totals.]
+clarification:
+  ambiguity_group: procurement_receipt_basis
+  question: 采购入库按采购单号非空、入库类型为采购，还是两者同时满足识别？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: "2026-09-10"
+grain: cargo_owner_id + warehous_code + detail.id; retain receiving warehouse, SKU, item_code, batch_number and production_date
+unit: Source detail.unit code; reconcile separately by unit with no implicit EA conversion
+time_window:
+  production_field: d.production_date
+  production_interval: "[production_start, production_end)"
+  arrival_field: h.actual_arrival_date
+  arrival_interval: "actual_arrival_date < arrival_before; no inherited arrival lower bound"
+  timezone: Asia/Shanghai
+  recent_seven_complete_days: Start at business_today minus seven calendar days, end at business_today midnight; not the last 168 hours.
+formula: Each detail.received_quantity is retained unrounded; SUM(received_quantity) is reconciled independently for each source unit.
+sources:
+  required: [ywzt_ods.scm_warehous_header, ywzt_ods.scm_warehous_detail, ywzt_ods.master_wms]
+parameters:
+  production_start: {required: true, type: datetime}
+  production_end: {required: true, type: datetime}
+  arrival_before: {required: true, type: datetime}
+  purchase_basis: {required: true, type: enum, default: purchase_type, examples: [purchase_order_reference, purchase_type, both]}
+  probe_limit: {required: true, type: integer, examples: [501]}
+filters:
+  purchase_order_reference: "TRIM(COALESCE(h.po_order_code, '')) <> ''; explicitly requested in T03"
+  purchase_type: "h.warehous_type = '10'; historical thread receipt-report variant"
+  both: Both procurement predicates apply; never substitute this stricter variant for either definition silently.
+  header_status: "h.status = '0'"
+  detail_status: "d.status = '0'"
+  logical_delete: Normalized _fdl_marked_deleted is false on both facts; null follows the imported IFNULL(false) convention.
+  not_inherited: No implicit owner, cloud-warehouse, finished-goods, approval-status, completed-status or quantity-greater-than-zero filter.
+  joins: Header and detail join on normalized owner plus receipt code; warehouse names join on normalized owner plus warehouse code.
+  duplicate_control: Identical header attributes collapse before joining. Conflicts including variants outside the time or deletion filter remain visible to validation. Duplicate physical detail IDs fail validation rather than collapsing receipt lines.
+  freshness: Business production/arrival timestamps do not establish synchronization freshness; ingestion lag remains unverified.
+  reconciliation:
+    - Every returned line must satisfy both independent date conditions.
+    - Missing quantity or unit, negative quantity, duplicate line key and conflicting warehouse/header mappings are failures.
+    - Matched row count and unrounded per-unit totals must agree with all returned details.
+    - A successful empty result is no_data, not a fabricated zero quantity.
+    - Complete retrieval uses stable owner/receipt/detail row ordinals; every SQL page retains the backend row cap and full-scope controls.
+    - Reconcile every line before presentation; two complete scans must have equal counts and content digests to detect source changes. This is not a transactional source snapshot.
+    - Presentation pages contain at most 100 screened rows. Additional pages are owner-scoped in memory, expire after one hour, and are invalidated on service restart.
+    - Whole-result limits are 100000 rows, 64 MiB and 180 seconds; incomplete pages or exhausted budgets never produce a complete result or export.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation]
+execution:
+  mode: sql_template
+  template: sql_templates/purchase.received_detail.sql
+template: sql_templates/purchase.received_detail.sql
+notes: Current project-approved default is purchase_type (warehous_type=10), based on the historical thread rule. purchase_order_reference and both remain explicit selectable variants and are not silently merged. Field presence and types were checked through the approved MCP tool, not inferred from query results.
+updated_at: "2026-09-10"

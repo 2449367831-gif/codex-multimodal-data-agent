@@ -1,0 +1,44 @@
+contract_schema_version: 1.0.0
+id: inventory.finished_goods_owner_summary
+version: 1.0.0
+status: active
+business_concept: inventory.finished_goods_quantity
+variant: realtime_available_plus_transit_owner_summary
+display_name: 按货主汇总的当前实时可用成品库存加在途
+aliases: [货主成品库存汇总, 货主库存占比, 在途库存占比]
+business_definition: Current finished-goods inventory grouped by cargo owner. Available inventory and in-transit inventory are independently summed from sku_inventory, then finished-goods inventory is their sum.
+nearby_metrics_not_equivalent: [inventory.finished_goods_realtime, inventory.snapshot_quantity, inventory.turnover_finished_goods_realtime]
+grain: cargo owner, after source facts are grouped by cargo owner + warehouse + SKU
+unit: EA; shares are percent
+time_window:
+  kind: current_state
+  freshness_field: information_schema.tables.update_time
+  timezone: Asia/Shanghai
+formula: finished_goods_inventory = SUM(available_quantity) + SUM(in_transit_quantity); in_transit_share = in_transit_inventory / finished_goods_inventory; inventory_share = finished_goods_inventory / all_owner_finished_goods_inventory
+sources:
+  required: [ywzt_ods.sku_inventory, ywzt_ods.master_sku, information_schema.tables]
+parameters:
+  cargo_owner: {required: false, default: ALL}
+  warehouse_scope: {required: false, default: ALL}
+  sku_scope: {required: false, default: ALL}
+  output_grain: {required: true, examples: [owner, warehouse, sku]}
+filters:
+  finished_goods: "Join a DISTINCT master_sku key set and require TRIM(sku_group) = '50'."
+  owner: "Preserve the source owner code as text; blank or null owner is a quality failure."
+  quantities: "Preserve signed source quantities and duplicate-looking facts; aggregate by owner, warehouse and SKU before owner totals."
+  missing_denominator: "Share is null when its denominator is zero; do not invent a percentage."
+freshness:
+  check: "sku_inventory table update_time must be present and is displayed as source freshness."
+reconciliation:
+  rules: [owner_count_matches_rows, component_totals_match_controls, finished_goods_equals_available_plus_transit, nonnegative_warehouse_totals, unique_owner_code]
+execution:
+  mode: composite
+  route: current_inventory_owner_summary
+required_validations: [single_statement_and_read_only, source_freshness, inventory_key_aggregation, inventory_net_nonnegative, control_total_reconciliation]
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_live_route_tests
+  approved_by: current_project_requester
+  approved_at: "2026-09-18"
+updated_at: "2026-09-18"

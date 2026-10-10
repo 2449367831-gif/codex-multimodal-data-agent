@@ -1,0 +1,76 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_business_reference
+version: 1.0.0
+status: candidate
+business_concept: inventory.turnover
+variant: business_workbook_reference_w37
+display_name: W37业务周转表复现候选
+aliases: [W37周转表, 业务周转表, 业务近14天周转]
+business_definition: >-
+  Reproduce the supplied W37 workbook and PNG as a reference report only. The
+  workbook labels movement as near 14 days, but both sales sheets contain the
+  explicit interval 2026-09-05~2026-09-11, which is seven complete natural
+  days. The displayed value is the workbook formula inventory divided by the
+  seven-day sales total; it is not the normalized turnover-days formula
+  inventory divided by average daily sales. It is not yet approved for live
+  use because the historical inventory snapshot cannot currently be replayed
+  to the workbook time.
+applicability:
+  applicable_when:
+    - The user explicitly asks to reproduce the supplied W37 business workbook or PNG.
+  not_applicable_when:
+    - The user asks for the mathematically normalized turnover-days metric.
+    - The user asks for the active eight-center operating report.
+clarification:
+  ambiguity_group: business_turnover_semantics
+  question: 请选择业务表复现值，或按平均每日实际出库量计算标准周转天数。
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + business_center + business_warehouse + SKU
+unit: EA inventory and average daily movement; displayed ratio pending exact-source approval
+time_window:
+  mode: workbook_reference_window
+  timezone: Asia/Shanghai
+  source_label: 2026-09-05~2026-09-11
+  start: "2026-09-05T00:00:00+08:00"
+  end: "2026-09-12T00:00:00+08:00"
+  interval: "[start_inclusive, end_exclusive)"
+  source_window_days: 7
+formula: workbook_displayed_value = inventory_ea / seven_day_sales_total_ea; seven_day_sales_total_ea is not divided by 7; zero movement is null
+sources:
+  required: [ywzt_ods.scm_warehous_manage, ywzt_ods.scm_warehous_occupy, ywzt_ods.scm_warehous_header, ywzt_ods.scm_warehous_detail, ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.scm_po_header, ywzt_ods.scm_po_detail, ywzt_ods.scm_transfer_order_header, ywzt_ods.scm_transfer_order_detail, ywzt_ods.scm_sales_shipment_allocate_wms, ywzt_ods.scm_stock_history, ywzt_ods.master_sku, ywzt_ods.master_store, ywzt_ods.master_wms]
+parameters:
+  cargo_owner: {required: false, default: HJXH}
+  source_window: {required: true, type: enum, default: workbook_7d, examples: [workbook_7d]}
+  output_grain: {required: true, type: enum, default: business_center_and_warehouse, examples: [business_center, business_center_and_warehouse]}
+filters:
+  sku_scope: master_sku.sku_group = '50'
+  center_scope: Nine business centers, including Guangzhou Shunde, from the workbook's 基础信息表 mapping rather than the active eight-center profile.
+  inventory_basis: >-
+    Workbook summary uses inventory available quantity plus in-transit quantity:
+    inventory.available_quantity + inventory.in_transit_quantity. The exact
+    legacy inventory derivation remains a reconciliation requirement.
+  movement_basis: The workbook's sales tab covers 2026-09-05~2026-09-11. At warehouse grain it sums the sales tab total by warehouse description plus cloud-sales offline total by self-warehouse; at center grain it sums the sales tab total by center plus cloud-sales platform community-group quantity by center. This legacy split must be reproduced explicitly; it must not be replaced by a broad Doris total.
+  workbook_control_total: The supplied workbook evaluates to 2361818 EA seven-day sales total and 34048494 EA inventory at the center total. The displayed 14.4162 value is exactly 34048494 / 2361818. It is not 34048494 / (2361818 / 7).
+  movement_unit: seven_day_sales_total_ea
+  channel_mapping: Business workbook classifies online, offline and other using customer master data. Do not infer a different channel taxonomy.
+  no_unit_conversion: Do not convert EA, boxes or other units until the business source SQL confirms the source unit.
+required_validations: [single_statement_and_read_only, metric_variant_resolved, business_date_semantics, metric_validation_isolation, component_scope_equivalence, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: >-
+  Candidate only. W37周转.xlsx and W37周转(1).xlsx have identical cached
+  business values across all sheets; their only observed differences are
+  formula-object packaging in the cloud-sales sheet. The workbook contains
+  nine center rows and a center total, while the active Agent profile has
+  eight. Candidate publication still requires exact source SQL, inventory
+  snapshot reconciliation, explicit legacy cloud-sales split and zero-
+  tolerance center-by-center reconciliation. Never present this candidate as
+  the mathematically normalized 14-day turnover metric.
+updated_at: "2026-09-12"

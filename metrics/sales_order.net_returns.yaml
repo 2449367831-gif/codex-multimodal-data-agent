@@ -1,0 +1,59 @@
+contract_schema_version: 1.0.0
+id: sales_order.net_returns
+version: 1.0.0
+status: candidate
+business_concept: sales_order.net_sales
+variant: order_detail_shipment_with_all_related_returns
+display_name: Sales-order net quantity and separate proportional payment
+aliases: [Sales order net returns]
+business_definition: Compose independently reconciled sales-order SKU components and all related valid return documents using exact owner/order/SKU keys. Use the historical sales-order-detail shipment basis confirmed by the user; this does not change daily WMS outbound semantics.
+nearby_metrics_not_equivalent: [sales.outbound_actual, actual_refund, header_refund_amount, detail_return_amount]
+applicability:
+  applicable_when: [Order-detail net quantity is requested and the selected sales cohort is explicit.]
+  not_applicable_when: [Actual settled refund amounts, WMS net outbound or return-date cohorts are requested.]
+clarification:
+  ambiguity_group: return_amount_basis
+  question: Choose proportional payment deduction or actual document refund semantics before publishing any amount variant; the choice remains unresolved.
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: owner + sales_order_code + sku_code; whole-order payment remains in a separate order table
+unit: Raw integer quantities and original currency. Ratios retain exact fractions internally; no money rounding/display policy or source-unit conversion is yet approved.
+time_window:
+  mode: sales_cohort_with_all_related_returns
+  timezone: Asia/Shanghai
+  rule: Select sales header creation in the explicit half-open window, then include all valid related returns without applying that window to return creation.
+  month_selection: Bare current-month requests require one selection of question-time, question-day midnight or the complete natural month. Do not offer an empty midnight window on the first day. Selection continuations use the stored request reference time.
+  freshness_field: updated
+  component_freshness: Sales updated and return updated_date are checked independently by their component contracts.
+formula: net_qty = aggregated sales-order-detail ship_qty - aggregated return-detail fulfill_qty. Optional candidate proportional_payment = aggregated detail payment * net_qty / aggregated ship_qty.
+sources:
+  required: [ywzt_ods.scm_sales_order_header, ywzt_ods.scm_sales_order_detail, ywzt_ods.scm_return_order_header, ywzt_ods.scm_return_order_detail]
+parameters:
+  owner_codes: {required: false, default: ALL}
+  order_codes: {required: false, default: ALL}
+  sku_codes: {required: false, default: ALL}
+  start: {required: false, default: null}
+  end: {required: false, default: null}
+  amount_mode: {required: false, default: pending, description: pending produces no computed money; proportional is an internal candidate only. actual_refund is not supported or aliased.}
+filters:
+  joins: Aggregate each fact independently before composition. Pass exact owner/order pairs, not owner-list times order-list. Empty selected sales cohort means NONE and never triggers an unrestricted return read.
+  missing_facts: Preserve orders without details and return SKUs without sales lines. Missing sale quantity yields NULL net, not a zero-sale inference; no related eligible return yields zero returned quantity.
+  statuses: Every source retains its own status and ETL-delete rules from the component contracts. Sales status never substitutes return-detail status.
+  money: Only SKU detail payment can enter proportional computation. Whole-order payment remains separate; actual header refunds and return-detail amounts are not used. Missing currency or incomplete payment prevents computation.
+  zero_and_signed: Zero shipped quantity retains original detail payment only in the explicit historical proportional candidate and emits a warning. Negative shipped totals leave money unresolved. Excess returns preserve negative net and optional negative proportional payment with a warning; signed source anomalies are retained.
+  rounding: Use exact rational arithmetic, retaining numerator and denominator internally; presentation and financial rounding require a separate decision. Never silently round each detail line.
+  freshness: Re-read both complete components and reject changes. Matching repeated reads detect observed changes but are not an atomic cross-table snapshot or an ETL completeness guarantee.
+  reconciliation: Require both component controls first; verify exact cohort membership, unique SKU groups, total returned quantity, matching header attributes and currency-separated computed totals. Public amount and quantity acceptance require independent live reference checks.
+  quantity_presentation: A candidate typed quantity handler separates complete order membership from owner/order/SKU quantities, retains missing and signed values with diagnostics, and omits all monetary fields. It requires all three version-1 component contracts active and approved. Natural-language quantity requests support independent exact owner/order/SKU code lists, ALL omitted scopes and reviewed creation-date windows. Quoted codes are opaque to other field and date parsing. Repeated interleaved dimensions that may describe paired predicates stop instead of becoming a Cartesian selection. Unsupported conditions are not discarded.
+  request_selection: Ask unresolved amount, current-month boundaries and conflicting ALL-versus-listed owner/order/SKU/date decisions together. An explicit quantity-only choice may omit requested money for that request only. Selecting proportional payment or actual refund preserves that requirement and stops until its monetary definition is approved; it does not publish a metric. Missing or extra choices cannot execute or trigger a second model interpretation. Selected code tuples survive execution, capsules and history; omitted scope is rebuilt as ALL for each new question, while the literal owner code ALL is an exact selected code.
+required_validations: [single_statement_and_read_only, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [sales_order.components, sales_order.return_components]
+dependency_versions: {sales_order.components: 1.0.0, sales_order.return_components: 1.0.0}
+notes: Candidate with request-local quantity routing, all-at-once selection and screened two-table backend presentation. API tests use synthetic data and approved-gate fixtures only; no publication or independent live business acceptance is implied. Broader scope and order selection, monetary output and deployed workflow acceptance remain outstanding. T13/T14 and T28 remain unaccepted; this is not a WMS SKU shipment report and does not complete T28 by itself.
+updated_at: '2026-09-11'

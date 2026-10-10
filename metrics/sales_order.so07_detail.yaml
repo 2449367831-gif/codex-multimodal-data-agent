@@ -1,0 +1,75 @@
+contract_schema_version: 1.0.0
+id: sales_order.so07_detail
+version: 1.0.0
+status: candidate
+business_concept: sales_order.request_quantity
+variant: so07_order_detail
+display_name: SO07社团销售订单明细
+aliases: [SO07订单, 社团销售订单, 社团销售订单明细]
+business_definition: Active SO07 sales-order detail lines whose order header was created within the requested Asia/Shanghai natural-day interval; omitted dates mean all order creation times. The route is independent of shipment completion and reports request_qty.
+nearby_metrics_not_equivalent: [sales.shipment_quantity, sales.outbound_actual]
+applicability:
+  applicable_when: [The user explicitly requests SO07 social-commerce orders and their requested quantities.]
+  not_applicable_when: [The user requests actual shipped quantity, shipment documents, or a channel replacement metric.]
+clarification:
+  ambiguity_group: sales_order_quantity_basis
+  question: 需要查询SO07订单请求数量，还是实际销售出库数量？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + sales_order_code + detail.id; retain order, customer, warehouse, SKU and order status
+unit: Source order-detail unit meaning is not yet verified. The user approved displaying raw request quantities together with source unit codes on 2026-09-11; no EA/box conversion or cross-unit quantity total is approved.
+time_window:
+  field: h.created
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+  today: Today is the business natural day, not the last 24 hours.
+formula: SUM(d.request_qty) for reconciliation only; each detail line displays its unrounded request quantity.
+sources:
+  required: [ywzt_ods.scm_sales_order_header, ywzt_ods.scm_sales_order_detail, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: false, type: datetime, default: null}
+  end_exclusive: {required: false, type: datetime, default: null}
+  order_type: {required: true, type: enum, examples: [SO07]}
+  output_grain: {required: true, type: enum, examples: [order_detail]}
+  probe_limit: {required: true, type: integer, examples: [501]}
+filters:
+  order_type: "h.order_type = 'SO07'; never use ref_order_type from a shipment header."
+  order_time: "Both bounds present: h.created >= start_inclusive AND h.created < end_exclusive. Both omitted: ALL time, with no invented default date. One missing bound is invalid; missing source creation time remains a quality failure."
+  logical_delete: "h.deleted_flag = 0 AND h._fdl_marked_deleted = 'false'; detail _fdl_marked_deleted = 'false'"
+  deletion_quality: Known deleted headers and known deleted or inactive details are excluded before effective-version counting. Missing or unrecognized deletion flags on otherwise selected records are retained as quality errors, never defaulted to active or silently removed.
+  detail_status: "d.status = '0' only filters active detail lines; h.status remains a display field."
+  no_shipment_dependency: Do not join scm_sales_shipment_header or require a shipment to retain an order.
+  joins: Join header and detail by company_code + sales_order_code; warehouse master by cargo_owner + warehouse_code.
+  scope_defaults: Omitted date, owner, warehouse and SKU scopes are ALL and are rebuilt for each request. Conflicting ALL and explicit scopes must be selected together, never resolved by scope inheritance.
+  scope_validation: Exact scope identifiers must be canonical bounded strings in unique tuples; returned owner, warehouse and SKU keys are rechecked against the plan before presentation.
+  duplicate_control: Deduplicate identical qualified header attributes before detail join; conflicting header variants and duplicate detail IDs block output.
+  header_quality: Count qualified header variants before selecting SO07 and the creation window. Missing owner, order identity or creation time in the selected candidate cohort must fail quality rather than disappear through an inner join or date comparison. A window-count CTE preserves null keys without a control-table self join.
+  detail_reference_quality: The complete reader runs quantity-free reference checks before and after all pages, under one time budget. A retained detail is potentially related through its physical header ID, its complete owner/order key, or a matching surviving part of an incomplete owner/order key. Missing or unequal business keys and a nonblank physical reference disagreeing with the reached header stop output; optional missing physical IDs do not invalidate complete business keys. No physical-reference fallback is used to calculate quantities.
+  reference_scope: Reference checks use the selected header type/date/owner and the effective detail warehouse/SKU. Known unrelated warehouse/SKU values and established deleted/inactive records are excluded; missing warehouse/SKU keys cannot prove exclusion. Partial-key matches indicate ambiguity, never ownership. Details without any surviving reference cannot be assigned a SO07 type or date and are outside this scoped diagnostic; passing checks do not prove global source completeness.
+  freshness: MAX(updated) is source change time, not guaranteed ingestion freshness.
+  source_evidence: Preserve header and detail updated timestamps separately, plus raw quantity_u_m and sales_unit references. Normalize timestamps to Asia/Shanghai. Reconcile missing header timestamps at distinct owner/order grain, missing detail timestamps and unit references at retained detail grain, and both latest timestamps against SQL controls. Missing-detail placeholders do not count as detail timestamp or unit defects. Missing response fields are invalid, not source NULLs.
+  unit_evidence: Raw quantity-unit and sales-unit code pairs are retained with detail counts only. They do not establish physical unit names, request_qty conversion factors or cross-unit totals. quantity_unit_status stays unconfirmed and ingestion_freshness stays unverified even when all codes and modification times are present. Existing total_request_quantity is an internal raw arithmetic completeness control, never an approved business total across units.
+  quantity_presentation_confirmation: On 2026-09-11 the user selected raw requested quantity and source-unit codes without conversion. Present request_quantity, quantity_unit_reference and sales_unit_reference together; keep unknown codes NULL, missing detail quantities NULL and raw decimal precision unchanged. Summary may count distinct owner/order identities only, never sum quantities across units. This display decision does not confirm unit mappings, source synchronization or publish the whole SO07 candidate.
+  complete_retrieval: Preserve the requested order/date/owner/warehouse/SKU relation. Read stable ordinal pages of at most 500 rows, check completed-relation row counts on every page, enforce total row/byte/time budgets, then repeat the entire read and reject any observed content change before full order/detail reconciliation. Never present a truncated or changed prefix as complete.
+  reconciliation:
+    - Distinct order count is calculated on cargo_owner + sales_order_code, never detail rows.
+    - The sum of returned request_qty equals the independent total request control.
+    - Reconciliation uses a local 64-digit decimal context with inexact arithmetic rejected, independent of ambient process precision. A missing total is only valid when every retained order has no detail; a zero-valued detail still requires a non-null total control.
+    - Zero request quantities remain visible; missing quantities are not fabricated as zero.
+    - A successful empty result is no_data, not connection failure.
+    - An overflow probe is reported as truncated and cannot be called complete.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation]
+execution:
+  mode: sql_template
+  template: sql_templates/sales_order.so07_detail.sql
+template: sql_templates/sales_order.so07_detail.sql
+notes: Candidate only pending business approval. Customer is sourced from order-header store_name; warehouse is facility_code resolved through owner-qualified master_wms. No shipment join is intentional. Bounded complete retrieval, scoped reference diagnostics, source-change/unit-reference evidence, request-local routing and public raw-quantity tables are implemented separately from actual-source reconciliation. Repeated reads are not an atomic snapshot or ETL freshness proof. Physical unit mapping, ingestion freshness verification, global orphan investigation and independent actual-source acceptance remain unfinished. Planner and executor each require an active approved contract; the user's raw-display decision and separate return-reference approval do not publish SO07 semantics.
+updated_at: "2026-09-11"

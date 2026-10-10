@@ -1,0 +1,21 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_warehous_occupy
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: inventory_occupation
+grain: occupation record; aggregate before joining inventory
+aggregate_key: [cargo_owner_id, wms_code, sku_code]
+fields:
+  cargo_owner_id: {type: string, role: cargo_owner}
+  wms_code: {type: string, role: warehouse_key}
+  sku_code: {type: string, role: sku_key}
+  lock_quantity: {type: decimal, role: lock}
+  freeze_quantity: {type: decimal, role: freeze}
+  status: {type: string, role: record_status}
+  pre_order_code: {type: string, role: occupation_reference, description: The explicit historical split uses the HJXH-TH prefix for transfer occupation; it is not a global owner restriction.}
+  created_date: {type: datetime, role: business_date}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_warehous_occupy.yaml
+  semantic_changes_require_approval: true

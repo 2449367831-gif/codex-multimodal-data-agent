@@ -1,0 +1,99 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_7d_realtime
+version: 1.1.0
+status: candidate
+business_concept: inventory.turnover
+variant: seven_day_realtime
+display_name: 中心仓与分仓七日周转图片
+aliases: [中心仓周转图片, 分仓周转图片, 近7天周转图片, 仓库周转图, 库存周转图片]
+business_definition: >-
+  Produce a controlled PNG for the eight reviewed HJXH operating centers. The
+  center table is the governed scope rollup of each node-10 center plus its
+  currently valid mapped subwarehouses; the lower panels show those physical
+  subwarehouse aggregates separately. Inventory and movement are aggregated by
+  cargo owner, warehouse and SKU before the center rollup and turnover formula.
+  The two displayed layers therefore have different grains, but the center
+  total is exactly the sum of the physical rows in its governed scope.
+nearby_metrics_not_equivalent: [inventory.available_realtime, inventory.snapshot_quantity, inventory.turnover_mtd_realtime]
+applicability:
+  applicable_when:
+    - The user explicitly asks for a center/subwarehouse turnover image or report.
+    - The requested movement window is seven complete natural days.
+  not_applicable_when:
+    - The user asks for a raw SQL result, row-level export, or SKU-level detail image.
+    - The user asks for a historical snapshot or an unapproved warehouse alias.
+  required_signals: [turnover, center_warehouse, subwarehouse]
+  negative_signals: [historical_snapshot, raw_sql, row_detail]
+clarification:
+  ambiguity_group: turnover_component_basis
+  question: >-
+    请选择库存口径。范围固定为8个经营中心及当前有效分仓，动销固定为最近7个完整自然日的有效完成出库，结果将生成汇总图片。
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: unassigned
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + warehouse + SKU, then physical warehouse aggregate and center-scope rollup
+unit: EA and days
+time_window:
+  kind: seven_complete_natural_days
+  timezone: Asia/Shanghai
+  field: ship_at
+  freshness_field: ingestion_update_time
+  interval:
+    start: inclusive
+    end: exclusive
+  denominator: seven_day_total / 7
+formula: turnover_days = inventory_ea / (valid_outbound_7d_ea / 7); zero denominator renders 无动销; center rows use the scope rollup before division
+sources:
+  required:
+    - ywzt_ods.master_wms
+    - ywzt_ods.master_sku
+    - ywzt_ods.sku_inventory
+    - ywzt_ods.scm_warehous_manage
+    - ywzt_ods.scm_sales_shipment_header
+    - ywzt_ods.scm_sales_shipment_detail
+    - ywzt_ods.scm_sales_order_header
+  conditional:
+    - ywzt_ods.scm_warehous_occupy
+parameters:
+  cargo_owner: {required: false, default: HJXH, type: string}
+  inventory_basis: {required: true, type: enum, default: available_plus_transit, examples: [available_plus_transit, actual_quantity, record_deductions]}
+  inventory_status: {required: true, type: enum, default: ALL, examples: [ALL, ZP_OR_EMPTY, ZP]}
+  end_date_exclusive: {required: false, type: date, examples: [2026-08-29]}
+  output_grain: {required: true, type: enum, default: center_and_subwarehouse, examples: [warehouse, center_and_subwarehouse]}
+filters:
+  sku_scope: sku_group = '50' after master_sku deduplication
+  warehouse_scope: active master_wms rows for the eight approved node-10 codes, plus node 12/13/14 rows resolved by explicit belonging_center then senior_wms; explicit excluded codes remain out of scope
+  outbound_scope: status in (700, 900, 701, 901), non-deleted, DBCK or valid sales-order-backed shipment
+  mapping_rule: node10 is always an independent center keyed by wms_code; center parent-field anomalies are counted as warnings; node12/13/14 use explicit belonging_center then senior_wms and must resolve to an in-scope node10 center; unresolved mappings, duplicate mappings, and name conflicts block image
+  inventory_join_rule: sku_inventory has no row snapshot timestamp and is joined to the reviewed master_wms name/code allowlist only after uniqueness validation
+  center_detail_additivity: center_summary = center_warehouse + governed_detail_warehouses; detail panels are not added a second time to the center total
+  negative_inventory_rule: retain source negative facts in the net aggregate without clamping; emit a non-blocking quality warning when the warehouse net remains valid
+required_validations: [single_statement_and_read_only, source_freshness, master_data_freshness, exact_operating_center_scope, warehouse_mapping_integrity, inventory_name_uniqueness, inventory_composite_key_uniqueness, shipment_status_and_deletion, sales_order_non_multiplication, shipment_header_non_multiplication, inventory_key_aggregation, inventory_net_nonnegative, control_total_reconciliation, complete_natural_days, turnover_ratio_aggregation, negative_source_fact_policy]
+execution:
+  mode: composite
+depends_on:
+  - inventory.available_realtime
+  - sales.outbound_actual
+dependency_versions:
+  inventory.available_realtime: 1.0.0
+  sales.outbound_actual: 1.0.0
+notes: >-
+  The reference spreadsheet labels the movement column as 近7天动销 but its
+  values are daily averages; the generated image uses the explicit header
+  近7天日均动销（EA/日）. The default profile uses sku_inventory's
+  available_quantity + in_transit_quantity. This table has no row-level
+  snapshot timestamp, so information_schema.tables.update_time is used only
+  as an ingestion freshness check, never as a fabricated business date.
+  The current source contains a small number of negative detail facts. They
+  remain in the net sum and are recorded as a quality warning; no value is
+  clamped to zero or silently discarded. The actual_quantity and
+  record_deductions options remain explicit compatibility variants and use the
+  same eight-center scope.
+updated_at: "2026-08-31"

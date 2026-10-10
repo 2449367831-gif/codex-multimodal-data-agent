@@ -1,0 +1,167 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_7d_realtime
+version: 2.0.0
+status: deprecated
+business_concept: inventory.turnover
+variant: seven_day_realtime
+display_name: 中心仓与分仓七日周转图片
+aliases:
+- 中心仓周转图片
+- 分仓周转图片
+- 近7天周转图片
+- 仓库周转图
+- 库存周转图片
+business_definition: Produce a controlled PNG for the eight reviewed HJXH operating
+  centers. The center table is the governed scope rollup of each node-10 center plus
+  its currently valid mapped subwarehouses; the lower panels show those physical subwarehouse
+  aggregates separately. Inventory and movement are aggregated by cargo owner, warehouse
+  and SKU before the center rollup and turnover formula. The two displayed layers
+  therefore have different grains, but the center total is exactly the sum of the
+  physical rows in its governed scope.
+nearby_metrics_not_equivalent:
+- inventory.available_realtime
+- inventory.snapshot_quantity
+- inventory.turnover_mtd_realtime
+applicability:
+  applicable_when:
+  - The user explicitly asks for a center/subwarehouse turnover image or report.
+  - The requested movement window is seven complete natural days.
+  not_applicable_when:
+  - The user asks for a raw SQL result, row-level export, or SKU-level detail image.
+  - The user asks for a historical snapshot or an unapproved warehouse alias.
+  required_signals:
+  - turnover
+  - center_warehouse
+  - subwarehouse
+  negative_signals:
+  - historical_snapshot
+  - raw_sql
+  - row_detail
+clarification:
+  ambiguity_group: turnover_component_basis
+  question: 请选择库存口径。范围固定为8个经营中心及当前有效分仓，动销固定为最近7个完整自然日的有效完成出库，结果将生成汇总图片。
+validity:
+  effective_from: '2026-09-01T00:00:00+08:00'
+  effective_to: '2026-10-10T00:00:00+08:00'
+  supersedes:
+  - inventory.turnover_7d_realtime@1.1.0
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-09-07T00:00:00+08:00'
+grain: cargo_owner + warehouse + SKU, then physical warehouse aggregate and center-scope
+  rollup
+unit: EA and days
+time_window:
+  kind: seven_complete_natural_days
+  timezone: Asia/Shanghai
+  field: ship_at
+  freshness_field: ingestion_update_time
+  interval:
+    start: inclusive
+    end: exclusive
+  denominator: seven_day_total / 7
+formula: turnover_days = inventory_ea / (valid_outbound_7d_ea / 7); zero denominator
+  renders 无动销; center rows use the scope rollup before division
+sources:
+  required:
+  - ywzt_ods.master_wms
+  - ywzt_ods.master_sku
+  - ywzt_ods.sku_inventory
+  - ywzt_ods.scm_sales_shipment_header
+  - ywzt_ods.scm_sales_shipment_detail
+  - ywzt_ods.scm_sales_order_header
+parameters:
+  cargo_owner:
+    required: false
+    default: HJXH
+    type: string
+  inventory_basis:
+    required: true
+    type: enum
+    default: available_plus_transit
+    examples:
+    - available_plus_transit
+  inventory_status:
+    required: true
+    type: enum
+    default: ALL
+    examples:
+    - ALL
+  end_date_exclusive:
+    required: false
+    type: date
+    examples:
+    - 2026-09-02
+  output_grain:
+    required: true
+    type: enum
+    default: center_and_subwarehouse
+    examples:
+    - warehouse
+    - center_and_subwarehouse
+filters:
+  sku_scope: sku_group = '50' after master_sku deduplication
+  warehouse_scope: active master_wms rows for the eight approved node-10 codes, plus
+    node 12/13/14 rows resolved by explicit belonging_center then senior_wms; explicit
+    excluded codes remain out of scope
+  outbound_scope:
+    completion_statuses:
+    - 700
+    - 900
+    - 701
+    - 901
+    deletion: non-deleted header and detail rows
+    source_order: valid sales-order-backed shipment using owner-qualified existence
+      semantics; exclude DBCK
+  mapping_rule: node10 is always an independent center keyed by wms_code; center parent-field
+    anomalies are counted as warnings; node12/13/14 use explicit belonging_center
+    then senior_wms and must resolve to an in-scope node10 center; unresolved mappings,
+    duplicate mappings, and name conflicts block image
+  inventory_join_rule: Aggregate sku_inventory available_quantity plus in_transit_quantity
+    by owner, approved warehouse display name and finished-goods SKU before the warehouse
+    mapping join; this source has no row-level business snapshot date.
+  component_scope_invariant: Inventory and outbound must use the same eight-center
+    physical warehouse set, HJXH owner, finished-goods SKU set, EA unit, and governed
+    rollup mapping.
+  center_detail_additivity: center_summary = center_warehouse + governed_detail_warehouses;
+    detail panels are not added a second time to the center total
+  negative_inventory_rule: retain source negative facts in the net aggregate without
+    clamping; emit a non-blocking quality warning when the warehouse net remains valid
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- master_data_freshness
+- business_date_semantics
+- metric_variant_resolved
+- metric_validation_isolation
+- component_scope_equivalence
+- exact_operating_center_scope
+- warehouse_mapping_integrity
+- inventory_name_uniqueness
+- inventory_composite_key_uniqueness
+- shipment_status_and_deletion
+- sales_order_non_multiplication
+- shipment_header_non_multiplication
+- inventory_key_aggregation
+- inventory_net_nonnegative
+- control_total_reconciliation
+- complete_natural_days
+- turnover_ratio_aggregation
+- negative_source_fact_policy
+execution:
+  mode: composite
+depends_on:
+- inventory.finished_goods_realtime
+- sales.outbound_actual
+dependency_versions:
+  inventory.finished_goods_realtime: 2.0.0
+  sales.outbound_actual: 2.0.0
+notes: Published under the requester's confirmed available finished-goods inventory
+  plus in-transit / average actual finished-goods sales formula and existing eight-center
+  mapping. The image and table are presentations of the same reconciled aggregates.
+  Available-plus-transit and record-deduction variants are not part of this release.
+  Negative detail facts remain signed; zero movement is not zero turnover.
+updated_at: '2026-09-07'

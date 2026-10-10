@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-28T09:00:00+08:00",
+  "collection_status": "complete",
+  "origin": "doris-information-schema-fixture",
+  "tables": [
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "master_sku",
+      "columns": [
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "sku_name", "data_type": "varchar"},
+        {"column_name": "sku_group", "data_type": "varchar"},
+        {"column_name": "net_weight", "data_type": "varchar"},
+        {"column_name": "new_source_flag", "data_type": "tinyint"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_order_header",
+      "columns": [
+        {"column_name": "id", "data_type": "varchar"},
+        {"column_name": "sales_order_code", "data_type": "varchar"},
+        {"column_name": "updated", "data_type": "datetime"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [
+        {"field": "updated", "max_value": "2026-08-28 08:59:00", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_shipment_detail",
+      "columns": [
+        {"column_name": "outbound_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_sales_shipment_header",
+      "columns": [
+        {"column_name": "outbound_code", "data_type": "varchar"},
+        {"column_name": "ship_at", "data_type": "datetime"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "company_code", "data_type": "varchar"},
+        {"column_name": "ref_order_code", "data_type": "varchar"},
+        {"column_name": "ref_order_type", "data_type": "varchar"},
+        {"column_name": "store_code", "data_type": "varchar"},
+        {"column_name": "_fdl_marked_deleted", "data_type": "varchar"}
+      ],
+      "freshness": [
+        {"field": "ship_at", "max_value": null, "status": "empty"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_manage_backups",
+      "columns": [
+        {"column_name": "backups_date", "data_type": "date"},
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "in_stock_quantity", "data_type": "decimal"}
+      ],
+      "freshness": [
+        {"field": "backups_date", "max_value": "2026-08-01", "status": "ok"}
+      ]
+    },
+    {
+      "table_schema": "ywzt_ods",
+      "table_name": "scm_warehous_manage",
+      "columns": [
+        {"column_name": "cargo_owner_id", "data_type": "varchar"},
+        {"column_name": "wms_code", "data_type": "varchar"},
+        {"column_name": "sku_code", "data_type": "varchar"},
+        {"column_name": "in_stock_quantity", "data_type": "decimal"},
+        {"column_name": "allot_quantity", "data_type": "decimal"},
+        {"column_name": "lock_quantity", "data_type": "decimal"},
+        {"column_name": "freeze_quantity", "data_type": "decimal"},
+        {"column_name": "move_in_quantity", "data_type": "decimal"},
+        {"column_name": "status", "data_type": "varchar"},
+        {"column_name": "inventory_status", "data_type": "varchar"},
+        {"column_name": "stock_change_time", "data_type": "datetime"}
+      ],
+      "freshness": [
+        {"field": "stock_change_time", "status": "error", "error": "permission denied"}
+      ]
+    }
+  ]
+}

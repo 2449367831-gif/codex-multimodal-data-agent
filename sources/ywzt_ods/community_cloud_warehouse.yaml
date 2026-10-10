@@ -1,0 +1,48 @@
+group_id: ywzt_ods.community_cloud_warehouse
+version: 1.0.0
+status: candidate
+purpose: SO07社团订单与云仓库存、实际出库、采购入库的来源地图
+authority: metrics/sales_order.so07_cloud_warehouse.yaml, metrics/sales.so07_cloud_warehouse_outbound.yaml, metrics/inventory.so07_cloud_warehouse.yaml, metrics/purchase.so07_cloud_warehouse_inbound.yaml
+tables:
+  order_header: ywzt_ods.scm_sales_order_header
+  order_detail: ywzt_ods.scm_sales_order_detail
+  shipment_header: ywzt_ods.scm_sales_shipment_header
+  shipment_detail: ywzt_ods.scm_sales_shipment_detail
+  inventory_snapshot: ywzt_ods.sku_inventory
+  receipt_header: ywzt_ods.scm_warehous_header
+  receipt_detail: ywzt_ods.scm_warehous_detail
+  warehouse: ywzt_ods.master_wms
+  sku: ywzt_ods.master_sku
+business_keys:
+  order: [company_code, sales_order_code]
+  outbound: [company_code, outbound_code]
+  receipt: [cargo_owner_id, warehous_code]
+  inventory: [owner, wms_desc, sku_code]
+  warehouse: [cargo_owner_id, wms_code]
+semantic_separation:
+  so07: "SO07 is order_header.order_type. It is not ref_order_type, shipment status, warehouse name or customer name."
+  cloud_warehouse: "Cloud warehouse is master_wms.wms_type='12' with logical status 0 or NULL. It must be joined by owner plus warehouse code; name matching is allowed only for sku_inventory after uniqueness validation. wms_status is retained as a diagnostic because observed cloud rows use 10, 11 and 12."
+  actual_outbound: "Shipment detail ship_qty with statuses 700, 900, 701, 901. Never substitute request_qty or allocate_qty."
+  current_inventory: "sku_inventory available_quantity + in_transit_quantity for finished goods; not SO07-only inventory."
+  purchase_inbound: "Receipt header warehous_type='10' and actual received detail quantity; this is distinct from transfer receipt."
+join_rules:
+  - Aggregate each fact at its own grain before joining another one-to-many source.
+  - Use company/cargo-owner keys on every cross-table join; never join by warehouse name alone.
+  - For SO07 outbound, require the shipment ref_order_code to reach one non-deleted SO07 order header; an unmatched shipment is not attributed to SO07.
+  - For sku_inventory, map owner plus normalized wms_desc to exactly one active cloud master_wms row before displaying a warehouse code or name.
+quantity_rules:
+  - Order request quantity and actual ship quantity are separate measures.
+  - ship_qty is the only actual outbound quantity in this family; allocate_qty is comparison-only and unconfirmed.
+  - Request, received and inventory quantities retain source unit codes; no cross-unit conversion is approved.
+date_rules:
+  - Order questions use order_header.created.
+  - Actual outbound questions use shipment_header.ship_at.
+  - Inbound questions use receipt_header.actual_arrival_date; production_date is a separate requested dimension.
+  - Inventory is current state and reports source freshness instead of inventing a historical date.
+checks:
+  - Cloud warehouse mappings are unique, active and owner-qualified.
+  - Header/detail joins do not multiply quantities.
+  - SO07 order counts use distinct company_code + sales_order_code.
+  - Outbound document counts use distinct company_code + outbound_code.
+  - Empty, failed, rejected, truncated and incomplete results remain separate public states.
+  - Unmatched order links, missing units and missing master mappings are reported as anomalies, not silently converted to zero.

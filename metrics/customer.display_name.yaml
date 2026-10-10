@@ -1,0 +1,60 @@
+contract_schema_version: 1.0.0
+id: customer.display_name
+version: 1.0.0
+status: candidate
+business_concept: customer.name_projection
+variant: local_delivery_exceptions
+display_name: 地配快递客户名称展示
+aliases: [地配快递合并规则, 地配快递客户名称]
+business_definition: Preserve each owner-qualified customer identity and original current master name. Display the configured merged label only when price group is uniquely 2011 and the customer code is not an explicit exception; expose missing and conflicting master attributes.
+nearby_metrics_not_equivalent: [customer_identity_merge, sales_quantity, historical_order_customer_name, fulfillment_channel]
+applicability:
+  applicable_when: [Explicit opt-in to the local-delivery display-name rule or a reviewed caller requests customer labels by owner and customer code.]
+  not_applicable_when: [The request asks for historical order names, customer identity merging, undocumented exception lists or automatic changes to every sales report.]
+clarification:
+  ambiguity_group: customer_name_policy
+  question: 使用地配快递名称合并规则，还是保留全部原客户名称？
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: "2026-09-10T00:00:00+08:00"
+grain: cargo_owner + customer_code; never combine distinct customer identities by equal display names
+unit: Customer identities and physical master-record counts; no shipment or order quantity
+time_window:
+  mode: current_master_snapshot
+  freshness_field: updated
+  interval: Current master records only, not historically effective customer names.
+  timezone: Asia/Shanghai
+  omitted: ALL current customer records across owners. Do not invent a sales date, warehouse or SKU filter for a master-name lookup.
+formula: Display merged name when the unique nonmissing price group matches and exact customer code is not an exception; otherwise preserve the unique original master name. A name change never changes the grouping key.
+sources:
+  required: [ywzt_ods.master_store]
+parameters:
+  cargo_owner: {required: false, default: ALL}
+  customer_keys: {required: false, type: string, description: Explicit reviewed owner/customer pairs, not inferred from the exception list.}
+filters:
+  name_merge:
+    price_group: '2011'
+    display_name: 地配快递
+    exception_codes: ['185216', '181898', '181930', '184856', '180961', '180962', '180967', '180965', '183507', '181897', '180966', '180462']
+  key: Trimmed master_store.company_code plus master_store.code. Codes remain strings with preserved case and leading zeros; never match by name or numerically cast the exception list.
+  original_name: Current master_store.name. Order/shipment header store_name is a different historical business-record field, not silently substituted.
+  case_order: The price-group match and exclusion of all exception codes belong to the same merge condition. Never merge all 2011 records first and attempt to restore exceptions later.
+  master_aggregation: Aggregate master attributes by owner and customer code before joining requested keys. Identical values do not create extra customer identities; physical source-record counts remain visible for diagnostics.
+  missing_master: Explicit requested owner/customer keys are left joined to master aggregates. Unmatched keys retain null names, zero source records and a missing-master flag; never fabricate a name or drop the key.
+  missing_names: Normalize empty names to null. A unique nonblank name can coexist with missing observations; retain the missing count. Multiple distinct nonblank names produce null original_name, not arbitrary MIN-name selection.
+  price_conflicts: Count missing price group as a distinct observation state. Multiple distinct states prevent name merging; retain a unique original name if available and explicitly report the unresolved price-group classification.
+  merged_name_anomalies: A valid 2011 nonexception can display the merged label even if its original names are missing or conflicting, but original_name and all anomaly counts remain unchanged. A merged label never proves source master quality.
+  source_status: No customer status or logical-delete predicate was specified for this rule; do not invent one. It must be added as a separately reviewed variant if requested.
+  blank_keys: In an ALL or owner directory, count invalid owner/customer keys and reject incomplete identity results instead of silently losing them. Unrelated invalid records do not alter an explicit requested-key lookup.
+  freshness: Current records are not a historical name snapshot. Two matching complete reads are required before a future runtime presents the directory; this detects observed changes, not an atomic snapshot or an ingestion watermark.
+  reconciliation: Every requested or valid directory key appears once. Group counts and physical source-record totals reconcile; counts and null/unique/conflicting values are internally consistent; Python independently recomputes exception flags and display labels from the declared policy.
+required_validations: [single_statement_and_read_only, metric_variant_resolved, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: The exact display policy and twelve exceptions were supplied in T12 of the user's requested acceptance specification. Candidate status remains until runtime, independent live verification and user-facing integration are complete. Approval of this opt-in display transformation does not approve other customer identity or sales semantics.
+updated_at: "2026-09-10"

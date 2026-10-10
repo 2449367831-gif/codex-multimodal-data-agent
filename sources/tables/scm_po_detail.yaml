@@ -1,0 +1,21 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_po_detail
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: purchase_order_detail_for_inventory_transit
+grain: purchase order and SKU detail
+aggregate_key: [po_code, sku_code]
+fields:
+  po_code: {type: string, role: purchase_order_key}
+  sku_code: {type: string, role: sku_key}
+  request_quantity: {type: decimal, role: quantity}
+  status: {type: string, role: status}
+join_to:
+  table: ywzt_ods.scm_po_header
+  "on": d.po_code = h.po_code
+  cardinality: many_to_one
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_po_detail.yaml
+  semantic_changes_require_approval: true

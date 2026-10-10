@@ -1,0 +1,26 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_transfer_order_header
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: transfer_order_for_inventory_transit
+grain: transfer order header
+aggregate_key: [transfer_order_code]
+freshness: {field: updated, check: source updated must be within the approved 48h freshness window, expected_lag: 48h}
+fields:
+  transfer_order_code: {type: string, role: transfer_order_key}
+  outbound_code: {type: string, role: shipment_key}
+  sender_cargo_owner: {type: string, role: cargo_owner}
+  receiver_cargo_owner: {type: string, role: receiving_cargo_owner}
+  delivery_wms: {type: string, role: source_warehouse_key}
+  receive_wms: {type: string, role: target_warehouse_key}
+  order_status: {type: string, role: status}
+  updated: {type: datetime, role: freshness_timestamp}
+join_to:
+  table: ywzt_ods.scm_sales_shipment_allocate_wms
+  "on": h.transfer_order_code = a.transfer_order_code
+  cardinality: one_to_many
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_transfer_order_header.yaml
+  semantic_changes_require_approval: true

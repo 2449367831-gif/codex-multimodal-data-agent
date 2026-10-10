@@ -1,0 +1,18 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.master_sku
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: sku_dimension
+business_key: sku_code
+grain: one SKU after source deduplication
+required_deduplication: true
+fields:
+  sku_code: {type: string, role: sku_key}
+  sku_name: {type: string, role: display_name}
+  sku_group: {type: string, role: sku_group}
+  net_weight: {type: decimal, role: net_weight_kg}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.master_sku.yaml
+  semantic_changes_require_approval: true

@@ -1,0 +1,29 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_return_order_header
+version: 1.0.0
+status: candidate
+source_id: doris_ywzt_ods
+role: return_order_header
+business_key: return_order_code
+aggregate_key: [company_code, return_order_code]
+grain: One eligible return header per owner and return document; reject duplicates or conflicting sales-order references before joining detail.
+required_deduplication: true
+freshness:
+  field: updated_date
+  check: Source change time only; not a Doris ingestion watermark.
+fields:
+  id: {type: varchar, role: physical_key}
+  company_code: {type: varchar, role: cargo_owner}
+  return_order_code: {type: varchar, role: return_document_key}
+  ref_order_code: {type: varchar, role: referenced_sales_order}
+  facility_code: {type: varchar, role: return_warehouse}
+  status: {type: integer, role: return_order_status, description: Independent from sales and shipment statuses; eligible values require a metric-specific rule.}
+  request_refund_amount: {type: decimal, role: requested_refund, description: Return-document amount; not additive across SKU rows.}
+  actual_refund_amount: {type: decimal, role: actual_refund, description: Return-document amount; not the proportional payment deduction.}
+  created_date: {type: datetime, role: source_creation_time}
+  updated_date: {type: datetime, role: source_change_time}
+  _fdl_marked_deleted: {type: varchar, role: logical_delete}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_return_order_header.yaml
+  semantic_changes_require_approval: true

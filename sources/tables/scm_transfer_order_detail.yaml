@@ -1,0 +1,20 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_transfer_order_detail
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: transfer_order_detail_for_inventory_transit
+grain: transfer order and SKU detail
+aggregate_key: [transfer_order_code, sku_code]
+fields:
+  transfer_order_code: {type: string, role: transfer_order_key}
+  sku_code: {type: string, role: sku_key}
+  updated: {type: datetime, role: freshness_timestamp, nullable: true}
+join_to:
+  table: ywzt_ods.scm_transfer_order_header
+  "on": d.transfer_order_code = h.transfer_order_code
+  cardinality: many_to_one
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_transfer_order_detail.yaml
+  semantic_changes_require_approval: true

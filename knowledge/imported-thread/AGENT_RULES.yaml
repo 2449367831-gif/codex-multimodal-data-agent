@@ -1,0 +1,174 @@
+version: 2026-09-01.4
+purpose: weak-model execution constraints for Doris business extraction
+
+safety:
+  database_mode: readonly
+  allowed_statements:
+    - SELECT
+    - WITH_SELECT
+    - EXPLAIN_SELECT
+    - SHOW
+    - DESC
+    - DESCRIBE
+  forbidden_actions:
+    - INSERT
+    - UPDATE
+    - DELETE
+    - MERGE
+    - REPLACE
+    - CREATE
+    - ALTER
+    - DROP
+    - TRUNCATE
+    - CALL
+    - SET
+    - GRANT
+    - REVOKE
+  on_mutation_required: stop_and_report
+
+precedence:
+  - current_request_explicit_scope
+  - same_metric_live_validated_contract
+  - maintained_project_contract
+  - imported_business_terminology
+  - historical_sql_example
+
+scope_policy:
+  rebuild_scope_for_every_request: true
+  no_silent_inheritance: true
+  current_request_overrides_history: true
+  unmentioned_scope_means_all_unless_metric_contract_requires_it: true
+  context_may_fill_scope_only_for_clear_continuation: true
+  never_global_defaults:
+    - owner_HJXH
+    - finished_goods_sku_group_50
+    - business_warehouse_filter
+    - package_material_name_exclusions
+    - sales_valid_status
+    - inventory_occupation_window
+
+task_contract_required_fields:
+  - metric
+  - date_start
+  - date_end_exclusive
+  - date_field
+  - owner_scope
+  - warehouse_scope
+  - sku_scope
+  - channel_scope
+  - unit
+  - grain
+  - source_mode
+
+metric_routes:
+  valid_sales_outbound:
+    source_tables:
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+    required_filters:
+      - status_in_700_900
+      - valid_source_order_exists
+      - ref_order_type_contract
+      - half_open_ship_at_range
+    optional_only_if_explicit:
+      - owner_scope
+      - sku_group_50
+      - warehouse_scope
+      - channel_scope
+    measures:
+      outbound_ea: SUM(ship_qty)
+      outbound_tons: SUM(ship_qty * net_weight) / 1000
+      outbound_order_count: COUNT(DISTINCT outbound_code)
+    status_authority:
+      current_sales_shipment_contract: [700, 900, 701, 901]
+      confirmed_at: "source_thread_business_confirmation"
+    run_validations:
+      - shipment_header_detail_cardinality
+      - source_order_existence
+      - missing_or_conflicting_net_weight
+      - result_reconciliation
+    forbidden_unrelated_validations:
+      - realtime_inventory_available_bounds
+      - inventory_occupation_freshness
+
+  realtime_available_inventory:
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_occupy
+    grain_before_join:
+      - cargo_owner_id
+      - wms_code
+      - sku_code
+    formula: in_stock - allot - lock - freeze + move_in - occupation_lock - occupation_freeze
+    run_validations:
+      - stock_duplicate_keys
+      - occupation_duplicate_keys
+      - available_inventory_bounds
+      - source_negative_quantities
+    forbidden_unrelated_validations:
+      - shipment_source_order_existence
+
+  historical_inventory:
+    source_tables:
+      - ywzt_ods.scm_warehous_manage_backups
+    date_field: backups_date
+    required_grain:
+      - backups_date
+      - cargo_owner_id
+      - wms_code
+      - sku_code
+    transit_rule: use_key_union_to_keep_transit_only_rows
+
+  historical_transit:
+    source_tables:
+      - ywzt_ods.scm_in_transit_backup
+    measure: SUM(ship_qty)
+    required_precheck: MAX(backups_date)
+    stale_data_policy: block_or_warn_without_fabricating
+
+  turnover:
+    inventory_rule: use_requested_inventory_point
+    current_month_default_when_requested: realtime_inventory_now
+    sales_window_for_current_month: month_start_00_to_today_00
+    formula: inventory / (valid_sales_outbound / elapsed_days)
+    join_rule: aggregate_inventory_and_sales_to_same_grain_before_join
+    run_validations:
+      - denominator_nonzero
+      - same_scope_inventory_and_sales
+      - elapsed_day_count
+      - source_specific_checks
+
+  purchase_received_tons:
+    source_tables:
+      - ywzt_ods.scm_po_header
+      - ywzt_ods.scm_po_detail
+    quantity_field: received_quantity
+    formula: received_quantity * net_weight / 1000
+    forbidden_quantity_field_for_actual_tons: request_quantity
+    join_rule: collapse_receipts_to_po_grain_before_joining_po_details
+
+  in_transit:
+    executable_contract_status: missing
+    ambiguity_group: transit_quantity_basis
+    variants:
+      legacy_full_requested_transit: full purchase request quantity plus the legacy transfer allocation rule
+      remaining_unreceived_transit: remaining request minus received quantity plus the status-specific transfer rule
+    behavior: clarify_before_source_check
+
+result_status:
+  usable: all_blocking_checks_passed
+  usable_with_warning: blocking_checks_passed_and_only_relevant_warnings_exist
+  blocked: blocking_check_failed_or_required_scope_unresolved
+
+output_requirements:
+  - data_window
+  - date_field
+  - source_tables
+  - join_keys
+  - grain
+  - filters
+  - formulas
+  - units
+  - missing_master_data_details
+  - relevant_validation_results
+  - unresolved_assumptions

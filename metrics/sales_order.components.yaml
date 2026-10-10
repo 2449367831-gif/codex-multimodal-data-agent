@@ -1,0 +1,54 @@
+contract_schema_version: 1.0.0
+id: sales_order.components
+version: 1.0.0
+status: candidate
+business_concept: sales_order.shipment_and_payment
+variant: independent_order_cohort_and_sku_facts
+display_name: Independent sales-order and SKU components
+aliases: [Sales order components]
+business_definition: Select sales orders independently and aggregate active sales-order detail by owner/order/SKU before relating returns. Preserve whole-order payment separately from detail payment. This internal foundation does not publish daily actual-outbound or net-refund semantics.
+nearby_metrics_not_equivalent: [sales.outbound_actual, sales_order.so07_detail, actual_refund]
+applicability:
+  applicable_when: [An explicit order-detail shipment and payment analysis is requested.]
+  not_applicable_when: [WMS actual shipments, allocated quantities or requested order quantities are required.]
+clarification:
+  ambiguity_group: order_payment_basis
+  question: Distinguish whole-order payment, SKU detail payment and actual refund before selecting amount output.
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: Orders at owner + sales_order_code; detail components at owner + sales_order_code + sku_code. Currency controls retain both families separately.
+unit: Raw integer order-detail ship_qty and original currency payment; no EA, box, weight or cross-currency conversion is approved. Multi-SKU quantities are internal completeness controls only.
+time_window:
+  mode: explicit_order_creation_cohort
+  timezone: Asia/Shanghai
+  rule: Optional paired timezone-aware half-open bounds on header created. Omitted bounds are ALL dates, not a prior request window. Returns are not filtered on this date axis.
+  freshness_field: updated
+formula: Independently SUM order-detail ship_qty and total_pay_amount at owner/order/SKU; retain header total_pay_amount exactly once per order.
+sources:
+  required: [ywzt_ods.scm_sales_order_header, ywzt_ods.scm_sales_order_detail]
+parameters:
+  owner_codes: {required: false, default: ALL}
+  order_codes: {required: false, default: ALL}
+  sku_codes: {required: false, default: ALL}
+  start: {required: false, default: null}
+  end: {required: false, default: null}
+filters:
+  header: No inferred header-status or order-type filter. Require a unique non-ETL-deleted owner/order identity with creation timestamp; conflicting variants remain a failure even if one falls outside the date window.
+  detail: status=0 on the detail table only; exclude true ETL deletion, reject malformed or missing retained delete flags, quantity, identity and duplicate owner-qualified detail IDs.
+  join: Select owner/order keys first; independently aggregate details, then use the exact owner/order join to the unique header. Preserve orders without eligible SKU details.
+  scope: Rebuild owner/order/SKU/date scope for each request; omitted ALL. SKU scope limits detail components but does not prorate the whole-order payment. Warehouse, channel and finished-goods filters are not inferred or supported by this component.
+  money: Keep header and detail payment apart and group controls by currency. Missing payment remains NULL with missing-row counts and separate known-only sums, never a complete zero. Do not assert header payment equals detail sums without an approved adjustment rule.
+  signed_values: Preserve signed and zero quantities and count negative source lines before aggregation.
+  freshness: Preserve per-source missing update-row counts before aggregation and compare them with independent currency controls and maximum timestamps. All-missing timestamps require a NULL maximum. Compare complete reads before and after; these checks are not an ETL watermark or atomic snapshot, and public freshness acceptance remains outstanding.
+  reconciliation: Compare every SKU and order family to independent pre-join currency controls for payment, quantity, row counts, missing payments, missing updates, negatives and maximum timestamps. Reject malformed row shapes, truncation and changed pages. Use isolated exact decimal arithmetic. An independent raw-source reference rebuilds identities, scopes, source statuses, currency controls and money with integer/rational arithmetic.
+required_validations: [single_statement_and_read_only, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: Candidate compiler and independent raw-source reference are synthetically tested. Full live reference reading currently reaches the existing row cap, so numerical reconciliation is not complete. Routing, business approval, ETL freshness evidence and public acceptance remain outstanding.
+updated_at: '2026-09-11'

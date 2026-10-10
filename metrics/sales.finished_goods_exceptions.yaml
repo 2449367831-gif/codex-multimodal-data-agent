@@ -1,0 +1,52 @@
+contract_schema_version: 1.0.0
+id: sales.finished_goods_exceptions
+version: 1.0.0
+status: active
+business_concept: sales.shipment_quantity
+variant: explicit_finished_goods_exceptions
+display_name: 成品及指定例外SKU实际销售出库
+aliases: [成品例外销售出库, 保留指定例外的成品出库]
+business_definition: Actual sales outbound for the explicitly requested union of finished-goods group 50 and the two approved exception SKU codes. This never changes ordinary finished-goods defaults.
+nearby_metrics_not_equivalent: [all_sku_outbound, finished_goods_without_exceptions, allocation_quantity]
+applicability:
+  applicable_when: [The current request explicitly includes both approved exceptions in the finished-goods scope.]
+  not_applicable_when: [The user requests ordinary finished goods without exceptions or a different exception set.]
+clarification:
+  ambiguity_group: finished_goods_membership
+  question: 成品范围是否包含指定的两个例外SKU？
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: "2026-09-10"
+grain: SKU; owner-qualified outbound documents are counted independently at company scope
+unit: EA
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: SUM(d.ship_qty) after applying the explicit SKU union; never allocation or request quantity.
+sources:
+  required: [ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.master_sku]
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  output_grain: {required: true, type: enum, examples: [sku]}
+filters:
+  finished_group: "50"
+  exception_skus: ["5101010010008", "5101010010009"]
+  membership: "master_sku.sku_group = '50' OR fact.sku_code IN exception_skus; exceptions remain even if master data is missing or another group."
+  shipment: Inherit approved actual shipment statuses, deletion rules and owner-qualified source-order existence without changing them.
+  scope: Unmentioned owner, warehouse, customer and channel are ALL. Explicit exceptions affect only the current request.
+  duplicate_control: Use distinct SKU membership, never a multiplying master-data join. Identical group records do not multiply quantities. Conflicting groups or missing refreshed classification for a non-exception result SKU block presentation.
+  rounding: Preserve source quantity precision before and after aggregation.
+  freshness: Latest ship_at is a business event, not an ingestion watermark; synchronization freshness remains unverified.
+  reconciliation: Group sums equal the full scoped total. Company document counts use distinct owner plus outbound code, not sums of SKU document counts. Overflow is explicitly truncated.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, shipment_header_non_multiplication, sales_order_non_multiplication, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [sales.outbound_actual]
+dependency_versions: {sales.outbound_actual: 2.0.0}
+notes: The explicit T07 business requirement approves this opt-in exception set, not a global finished-goods default. SQL remains internal.
+updated_at: "2026-09-10"

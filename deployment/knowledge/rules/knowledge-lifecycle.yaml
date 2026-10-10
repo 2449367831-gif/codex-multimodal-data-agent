@@ -1,0 +1,73 @@
+schema_version: 1.0.0
+authority:
+  contracts: [metrics/**/*.yaml, sources/**/*.yaml, profiles/**/*.yaml]
+  observations: observations/**/*.yaml
+  explanations: knowledge/**/*.md
+  principle: Observed Doris metadata is evidence, not an automatic rewrite of business semantics.
+
+change_classes:
+  observation_only:
+    examples: [column_type_observed, table_comment_observed, freshness_observed, enum_observed, duplicate_key_rate_observed]
+    automatic_action: write_observation_snapshot
+    production_contract_change: forbidden
+  retrieval_evidence:
+    examples: [accepted_question, rejected_route, confirmed_alias]
+    automatic_action: append_feedback_event_and_candidate_golden_case
+    production_contract_change: forbidden
+  routing_semantics:
+    examples: [alias, applicability, clarification_question, variant]
+    automatic_action: create_candidate_change
+    required_approval: business_owner
+  metric_semantics:
+    examples: [formula, source, join, grain, date_field, time_window, unit, filter, parameter_default]
+    automatic_action: create_candidate_version
+    required_approval: business_owner
+  source_semantics:
+    examples: [table_role, business_key, aggregate_key, join_cardinality, field_role]
+    automatic_action: create_candidate_version
+    required_approval: business_owner_and_data_owner
+
+protected_paths:
+  metric:
+    - business_concept
+    - variant
+    - business_definition
+    - applicability
+    - grain
+    - unit
+    - time_window
+    - formula
+    - depends_on
+    - sources
+    - parameters.*.default
+    - filters
+    - required_validations
+    - execution
+  source:
+    - role
+    - business_key
+    - grain
+    - aggregate_key
+    - join_to
+    - fields.*.role
+  profile:
+    - filters
+    - non_default
+
+automation_boundaries:
+  allowed_without_review:
+    - Refresh observations under observations/ with run timestamp and source query hash.
+    - Rebuild retrieval indexes from an already released immutable manifest.
+    - Open a candidate change and attach impact analysis and golden-test results.
+  forbidden_without_review:
+    - Change any protected path in a released contract.
+    - Promote an alias or feedback event directly into a routable contract.
+    - Replace ship_qty with request_qty or substitute a source table.
+    - Change owner, SKU, warehouse, channel, date, status, deletion, or unit scope.
+
+candidate_rules:
+  preserve_previous_version: true
+  require_semver_increment: true
+  one_routable_version_per_metric_id: true
+  require_effective_period: true
+  require_supersedes_for_semantic_replacement: true

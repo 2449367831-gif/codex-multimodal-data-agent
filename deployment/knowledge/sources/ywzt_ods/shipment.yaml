@@ -1,0 +1,52 @@
+group_id: ywzt_ods.shipment
+version: 2.0.0
+status: active
+purpose: 销售与周转动销来源地图，按当前批准合同区分两种口径
+authority: metrics/sales.business_quantity.yaml and metrics/sales.outbound_actual.v2.yaml and sources/tables/*.yaml
+default_sales:
+  metric: sales.business_quantity@1.0.0
+  community_selector: "master_store.type='Z001' AND master_store.group1='03'"
+  community_quantity: request_qty
+  community_time: created minus one day; raw created filtered on [start+1 day,end+1 day)
+  community_filter: Nondeleted header/detail, detail.status=0; no header status or type restriction.
+  ordinary_quantity: ship_qty
+  ordinary_time: ship_at
+  ordinary_filter: "700/900/701/901; JYCK/HHCK/BFCK/QTCK or SO%; source-order code JOIN; exclude community platform. No extra logical-deletion predicate absent from user SQL."
+  joins: Preserve code joins; check contributing header/master keys for duplicates and block multiplication.
+  unit: EA; preserve approved raw quantities; no inferred unit conversion.
+  applies_to: [sales_queries, turnover_movement]
+  counts: Outbound documents and community sales orders are distinct objects; show counts separately.
+  null_categories: Preserve original SQL NULL behavior and disclose subcategory gaps.
+physical_only_note: The sections below describe the separate physical actual-outbound contract, not the default hybrid sales metric.
+tables:
+  header: ywzt_ods.scm_sales_shipment_header
+  detail: ywzt_ods.scm_sales_shipment_detail
+  sales_order_header: ywzt_ods.scm_sales_order_header
+  sales_order_detail: ywzt_ods.scm_sales_order_detail
+  allocation_evidence: ywzt_ods.scm_sales_shipment_allocate_wms
+business_keys:
+  outbound_document: [company_code, outbound_code]
+  sales_order: [company_code, sales_order_code]
+quantity:
+  actual_outbound: ship_qty
+  forbidden_actual_substitute: allocate_qty
+fulfillment_type:
+  field: ywzt_ods.scm_sales_shipment_header.terms_of_shipment
+  values:
+    2C: "20"
+    2B: "not 20"
+  meaning: "2C/2B describes fulfillment type. It is distinct from customer channel, channel_code, and order-request quantity. Use it only when the current request explicitly specifies the type."
+time:
+  business_field: scm_sales_shipment_header.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+filters:
+  completed_statuses: [700, 900, 701, 901]
+  valid_source_order_types: [JYCK, HHCK, BFCK, QTCK, "SO%"]
+  logical_delete: header_and_detail_and_source_order_non_deleted
+join_rules:
+  - 先按公司和出库单去重出库头，再关联明细
+  - 销售订单使用去重后的 EXISTS 集合，不直接连接原始订单头
+checks:
+  - 分类数量合计等于总发货量
+  - 关联主数据前后实发数量不变
+  - 出库单按 outbound_code 去重，销售订单按 sales_order_code 去重

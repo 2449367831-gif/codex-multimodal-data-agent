@@ -1,0 +1,49 @@
+suite_id: known_answers
+version: 1.0.0
+status: active
+timezone: Asia/Shanghai
+cases:
+  - id: sales_outbound_contract
+    question: 昨天各仓库实际销售出库量
+    expected_metric: sales.outbound_actual@2.0.0
+    expected_quantity_field: ship_qty
+    expected_date_field: scm_sales_shipment_header.ship_at
+    expected_statuses: [700, 900, 701, 901]
+    expected_unit: EA
+    expected_distinct_key: outbound_code
+  - id: sales_outbound_7_complete_days
+    question: 最近7个完整自然日各仓库实际销售出库
+    expected_date_semantics: exclude_today
+  - id: inventory_current_components
+    question: 当前库存及销售占用、调拨占用、采购在途、调拨在途
+    expected_scope: ALL
+    required_reconciliation: true
+  - id: purchase_inbound
+    question: 采购入库按仓库和生产日期汇总
+    expected_inbound_type: "10"
+  - id: dms_points
+    question: 昨天DMS积分兑换订单
+    expected_logical_delete_only: true
+  - id: so07_cloud_order
+    question: 查询最近7天SO07社团云仓订单，按仓库和SKU汇总
+    expected_metric: sales_order.so07_cloud_warehouse@1.0.0
+    expected_order_type: SO07
+    expected_cloud_warehouse_type: "12"
+    expected_quantity_field: request_qty
+    expected_unit_policy: raw_source_unit_without_conversion
+  - id: so07_cloud_outbound
+    question: 查询昨天SO07社团云仓实际出库量，按仓库和SKU汇总
+    expected_metric: sales.so07_cloud_warehouse_outbound@1.0.0
+    expected_statuses: [700, 900, 701, 901]
+    expected_quantity_field: ship_qty
+    expected_forbidden_quantity_fields: [request_qty, allocate_qty]
+  - id: so07_cloud_inventory
+    question: 查询当前社团云仓成品库存和在途
+    expected_metric: inventory.so07_cloud_warehouse@1.0.0
+    expected_formula: available_quantity_plus_in_transit_quantity
+    expected_cloud_warehouse_type: "12"
+  - id: so07_cloud_inbound
+    question: 查询最近7天社团云仓采购入库
+    expected_metric: purchase.so07_cloud_warehouse_inbound@1.0.0
+    expected_inbound_type: "10"
+    expected_quantity_field: received_quantity

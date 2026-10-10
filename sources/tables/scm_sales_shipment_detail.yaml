@@ -1,0 +1,23 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_sales_shipment_detail
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: sales_outbound_detail
+grain: outbound document plus SKU detail
+join_to:
+  table: ywzt_ods.scm_sales_shipment_header
+  "on": d.outbound_code = h.outbound_code AND d.company_code = h.company_code
+  cardinality: many_to_one_after_header_deduplication
+fields:
+  company_code: {type: string, role: cargo_owner}
+  outbound_code: {type: string, role: join_key}
+  sku_code: {type: string, role: sku_key}
+  sku_name: {type: string, role: detail_display_name, description: Shipment-recorded name; not an identity or join key. Metadata verified through the approved Doris tool on 2026-09-10.}
+  ship_qty: {type: decimal, role: actual_shipment_quantity}
+  delete_flag: {type: integer, role: logical_delete}
+  _fdl_marked_deleted: {type: string, role: logical_delete}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_sales_shipment_detail.yaml
+  semantic_changes_require_approval: true

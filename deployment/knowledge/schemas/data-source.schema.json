@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.data-agent/schemas/data-source.schema.json",
+  "title": "Doris connection policy contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_schema_version", "id", "version", "status", "display_name", "dialect", "connection_protocol", "read_only", "allowed_statements", "forbidden_keywords", "query_policy"],
+  "properties": {
+    "contract_schema_version": {"const": "1.0.0"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"},
+    "status": {"enum": ["candidate", "active", "deprecated", "retired"]},
+    "display_name": {"type": "string"},
+    "dialect": {"type": "string"},
+    "connection_protocol": {"type": "string"},
+    "read_only": {"const": true},
+    "allowed_statements": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "forbidden_keywords": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "query_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_rows", "timeout_seconds", "require_single_statement", "require_fully_qualified_table"],
+      "properties": {
+        "max_rows": {"type": "integer", "minimum": 1},
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "require_single_statement": {"const": true},
+        "require_fully_qualified_table": {"const": true}
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}

@@ -1,0 +1,281 @@
+suite_schema_version: 1.0.0
+suite_id: core.metric_routing
+version: 1.2.0
+status: candidate
+cases:
+  - id: route.actual_outbound.explicit
+    test_level: end_to_end
+    question: 查询2026年8月27日的实际销售出库量
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: sales.outbound_actual
+      metric_version: 2.0.0
+      profile_id: null
+      parameters:
+        start_inclusive: "2026-08-27T00:00:00+08:00"
+        end_exclusive: "2026-08-28T00:00:00+08:00"
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [positive, shipment, date_window]
+    rationale: Explicit actual outbound wording selects the completed shipment fact and a half-open day window.
+
+  - id: reject.order_request_as_actual_outbound
+    test_level: end_to_end
+    question: 查询2026年8月27日销售订单的请求发货量
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: reject
+      reason_code: unsupported_metric_variant
+      unavailable_variants: [sales.order_requested]
+      must_not_inherit: []
+      forbidden_metric_ids: [sales.outbound_actual]
+    tags: [negative, shipment, semantic_boundary]
+    rationale: Requested order quantity must never be silently replaced with actual ship_qty.
+
+  - id: route.current_available_inventory
+    test_level: end_to_end
+    question: 查一下现在各仓各SKU的可用库存
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.available_realtime
+      metric_version: 1.0.0
+      profile_id: null
+      parameters: {output_grain: warehouse_sku}
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.snapshot_quantity]
+    tags: [positive, inventory, realtime]
+    rationale: Current and available are explicit, so the historical snapshot contract is excluded.
+
+  - id: route.inventory_snapshot_exact_date
+    test_level: end_to_end
+    question: 查2026年8月20日各仓库存快照
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.snapshot_quantity
+      metric_version: 1.0.0
+      profile_id: null
+      parameters: {snapshot_date: "2026-08-20", output_grain: warehouse}
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.available_realtime]
+    tags: [positive, inventory, snapshot]
+    rationale: An exact historical date and snapshot wording uniquely select the snapshot contract.
+
+  - id: clarify.inventory_time_and_quantity_basis
+    test_level: end_to_end
+    question: 现在库存有多少
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: clarify
+      candidate_metric_ids: [inventory.available_realtime, inventory.snapshot_quantity]
+      clarification_key: inventory_quantity_basis
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [ambiguous, inventory, clarification]
+    rationale: Inventory alone does not define available versus gross quantity or current versus snapshot semantics.
+
+  - id: clarify.snapshot_date_required
+    test_level: end_to_end
+    question: 查一下历史库存快照
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: clarify
+      candidate_metric_ids: [inventory.snapshot_quantity]
+      clarification_key: snapshot_date
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.available_realtime]
+    tags: [ambiguous, inventory, missing_parameter]
+    rationale: Historical snapshot is selected, but exact snapshot_date is mandatory and nearest-date substitution is forbidden.
+
+  - id: route.turnover_mtd_default_completed_days
+    test_level: end_to_end
+    question: 查本月实时库存周转天数，销售截止今天凌晨0点
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.turnover_finished_goods_realtime
+      metric_version: 1.0.0
+      profile_id: null
+      parameters:
+        start_inclusive: "2026-08-01T00:00:00+08:00"
+        end_exclusive: "2026-08-28T00:00:00+08:00"
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [positive, turnover, composite]
+    rationale: The question explicitly matches current inventory and complete-day actual-outbound turnover.
+
+  - id: reject.turnover_with_order_request_denominator
+    test_level: end_to_end
+    question: 用当前库存除以本月销售订单请求量算周转
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: reject
+      reason_code: unsupported_metric_variant
+      unavailable_variants: [inventory.turnover_current_inventory_order_request]
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.turnover_finished_goods_realtime, inventory.turnover_finished_goods_snapshot]
+    tags: [negative, turnover, semantic_boundary]
+    rationale: The approved turnover contract uses actual completed outbound, not order requested quantity.
+
+  - id: clarify.transit_quantity_variant
+    test_level: end_to_end
+    question: 查现在的在途库存
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: clarify
+      clarification_key: transit_quantity_basis
+      unavailable_variants: [inventory.transit_legacy_full_requested, inventory.transit_remaining_unreceived]
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.available_realtime]
+    tags: [ambiguous, inventory, transit, multi_variant]
+    rationale: Transit has two non-equivalent quantity bases and must be selected before source availability is evaluated.
+
+  - id: route.historical_turnover_period_end_snapshot
+    test_level: end_to_end
+    question: 查询上个月的库存周转天数
+    context: {now: "2026-09-01T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.turnover_finished_goods_snapshot
+      metric_version: 1.0.0
+      profile_id: null
+      parameters:
+        start_inclusive: "2026-08-01T00:00:00+08:00"
+        end_exclusive: "2026-09-01T00:00:00+08:00"
+        snapshot_date: "2026-08-31"
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.turnover_finished_goods_realtime]
+    tags: [positive, turnover, historical, snapshot]
+    rationale: A prior natural month defaults to the exact final-day finished-goods snapshot and the same interval's average actual completed finished-goods sales.
+
+
+  - id: reject.historical_date_as_realtime_available
+    test_level: end_to_end
+    question: 查询2026年8月20日可用库存
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: reject
+      reason_code: contract_not_applicable
+      unavailable_variants: [inventory.available_historical]
+      must_not_inherit: []
+      forbidden_metric_ids: [inventory.available_realtime]
+    tags: [negative, inventory, historical_date, semantic_boundary]
+    rationale: A dated available-inventory request is not realtime state and must not silently discard its date.
+
+  - id: reject.planned_as_actual_outbound
+    test_level: end_to_end
+    question: 查询2026年8月20日订单计划的销售出库量
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: reject
+      reason_code: contract_not_applicable
+      unavailable_variants: [sales.outbound_planned]
+      must_not_inherit: []
+      forbidden_metric_ids: [sales.outbound_actual]
+    tags: [negative, shipment, planned, semantic_boundary]
+    rationale: Planned outbound is not actual completed outbound even when the phrase sales outbound is present.
+
+  - id: reject.unshipped_as_actual_outbound
+    test_level: end_to_end
+    question: 查询2026年8月20日未完成销售出库量
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: reject
+      reason_code: contract_not_applicable
+      unavailable_variants: [sales.unshipped_demand]
+      must_not_inherit: []
+      forbidden_metric_ids: [sales.outbound_actual]
+    tags: [negative, shipment, unshipped, semantic_boundary]
+    rationale: Uncompleted demand cannot use the completion-status filter of actual outbound.
+
+  - id: route.no_previous_scope_inheritance
+    test_level: end_to_end
+    question: 再看一下当前可用库存
+    context:
+      now: "2026-08-28T09:00:00+08:00"
+      previous_request:
+        metric_id: sales.outbound_actual
+        parameters: {cargo_owner: OWNER_A, warehouse_scope: selected, sku_scope: selected}
+      explicit_profile_id: null
+    expected:
+      action: route
+      metric_id: inventory.available_realtime
+      metric_version: 1.0.0
+      profile_id: null
+      parameters: {cargo_owner: ALL, warehouse_scope: ALL, sku_scope: ALL}
+      must_not_inherit: [cargo_owner, warehouse_scope, sku_scope, channel]
+      forbidden_metric_ids: []
+    tags: [positive, scope_isolation, conversation]
+    rationale: A new metric request must not silently inherit owner, warehouse, SKU, or channel filters.
+
+  - id: clarify.generic_shipment_quantity
+    test_level: end_to_end
+    question: 昨天发货量是多少
+    context: {now: "2026-08-28T09:00:00+08:00", previous_request: null, explicit_profile_id: null}
+    expected:
+      action: clarify
+      candidate_metric_ids: [sales.outbound_actual]
+      unavailable_variants: [sales.order_requested, sales.community_replacement]
+      clarification_key: shipment_quantity_basis
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [ambiguous, shipment, multi_variant]
+    rationale: Generic shipment wording can mean actual outbound, requested quantity, or a channel replacement rule.
+
+  - id: smoke.actual_outbound_alias
+    test_level: router_smoke
+    question: 实际销售出库量
+    context: {previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: sales.outbound_actual
+      metric_version: 2.0.0
+      profile_id: null
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [smoke, deterministic_router, shipment]
+    rationale: An exact unique alias must select the actual outbound contract.
+
+  - id: smoke.available_inventory_alias
+    test_level: router_smoke
+    question: 实时可用库存
+    context: {previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.available_realtime
+      metric_version: 1.0.0
+      profile_id: null
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [smoke, deterministic_router, inventory]
+    rationale: An exact unique alias must select the realtime available inventory contract.
+
+  - id: smoke.snapshot_inventory_alias
+    test_level: router_smoke
+    question: 历史库存快照
+    context: {previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.snapshot_quantity
+      metric_version: 1.0.0
+      profile_id: null
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [smoke, deterministic_router, snapshot]
+    rationale: An exact unique alias must select the historical snapshot contract.
+
+  - id: smoke.turnover_alias
+    test_level: router_smoke
+    question: 当前实时成品库存周转
+    context: {previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: inventory.turnover_finished_goods_realtime
+      metric_version: 1.0.0
+      profile_id: null
+      must_not_inherit: []
+      forbidden_metric_ids: []
+    tags: [smoke, deterministic_router, turnover]
+    rationale: The explicit current real-time finished-goods alias selects the named current numerator variant.

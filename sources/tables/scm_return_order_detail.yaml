@@ -1,0 +1,35 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_return_order_detail
+version: 1.0.0
+status: candidate
+source_id: doris_ywzt_ods
+role: return_order_detail
+business_key: id
+aggregate_key: [company_code, return_order_code, sku_code]
+grain: Physical return line; keep distinct IDs even when SKU and quantities coincide, reject duplicate eligible IDs per owner.
+required_deduplication: true
+freshness:
+  field: updated_date
+  check: Track maximum and missing source timestamps; not guaranteed ingestion completeness.
+join_to:
+  table: ywzt_ods.scm_return_order_header
+  "on": d.company_code = h.company_code AND d.return_order_code = h.return_order_code
+  cardinality: many_to_one_after_header_uniqueness_check
+fields:
+  id: {type: varchar, role: physical_key}
+  company_code: {type: varchar, role: cargo_owner}
+  return_order_code: {type: varchar, role: return_document_key}
+  ref_order_code: {type: varchar, role: detail_sales_order_reference, description: Must be nonblank and equal the nonblank header reference after outer-space normalization. Missing or unequal references stop the entire query; neither side overrides the other.}
+  sku_code: {type: varchar, role: sku_key}
+  fulfill_qty: {type: integer, role: fulfilled_return_quantity, description: Metadata describes actual returned quantity; common-unit equivalence and EA labels are not established by the field type.}
+  status: {type: integer, role: detail_status}
+  total_amount: {type: decimal, role: detail_return_amount, description: Detail amount is not a header-level actual refund or proportional sales-payment deduction.}
+  source_pay_amount: {type: decimal, role: source_payment_amount}
+  settlement_amount: {type: decimal, role: settlement_amount}
+  created_date: {type: datetime, role: source_creation_time}
+  updated_date: {type: datetime, role: source_change_time}
+  _fdl_marked_deleted: {type: varchar, role: logical_delete}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_return_order_detail.yaml
+  semantic_changes_require_approval: true

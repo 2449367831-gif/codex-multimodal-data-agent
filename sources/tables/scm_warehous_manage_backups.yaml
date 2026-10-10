@@ -1,0 +1,21 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_warehous_manage_backups
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: historical_inventory_snapshot
+grain: backup date plus cargo owner plus warehouse plus SKU
+aggregate_key: [backups_date, cargo_owner_id, wms_code, sku_code]
+freshness:
+  field: backups_date
+  check: MAX(backups_date)
+fields:
+  backups_date: {type: date, role: snapshot_date}
+  cargo_owner_id: {type: string, role: cargo_owner}
+  wms_code: {type: string, role: warehouse_key}
+  sku_code: {type: string, role: sku_key}
+  in_stock_quantity: {type: decimal, role: in_stock}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_warehous_manage_backups.yaml
+  semantic_changes_require_approval: true

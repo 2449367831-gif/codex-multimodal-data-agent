@@ -1,0 +1,15 @@
+version: 1.0.0
+approved_by: current_project_requester
+approved_at: '2026-10-10'
+default_metric: sales.business_quantity@1.0.0
+decision: 销售查询和周转动销都采用新SQL。
+rules:
+  - 模型理解本次问题后选择合同；普通销售和周转采用新混合口径，不要求用户重复确认。
+  - 社区团购平台是客户主数据 type=Z001 且 group1=03；该部分使用 request_qty，归属 created 减一天。
+  - 其余渠道使用 ship_qty 和 ship_at；两类互斥，不重复加入社区平台实发量。
+  - 社区平台执行条件包括 d.status=0，以 SQL 实际条件为准，不能被矛盾的注释覆盖。
+  - 中心7天、分仓14天，保留已核验9个中心和42个分仓；库存分子继续采用新库存SQL。
+  - 明确要求物理实发时才能选择 sales.outbound_actual；它不能自动覆盖新默认。
+  - 保留原SQL分支过滤和NULL行为；重复关联阻止发布，不用MAX或任意去重隐藏。
+  - 每次范围独立，未指定条件为ALL；原始日期过滤使用左闭右开，社区订单窗口向后平移一天。
+  - 出库单数与社区订单数分开展示；显示两位小数，计算与对账保持原精度。

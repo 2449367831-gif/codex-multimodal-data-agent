@@ -1,0 +1,37 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_sales_order_header
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: sales_order_header
+business_key: sales_order_code
+aggregate_key: [company_code, sales_order_code]
+grain: physical UNIQUE KEY id; effective business grain is one non-deleted row per company_code and sales_order_code
+required_deduplication: true
+freshness:
+  field: updated
+  check: MAX(updated)
+join_to:
+  table: ywzt_ods.scm_sales_shipment_header
+  "on": so.sales_order_code = h.ref_order_code AND so.company_code = h.company_code
+  cardinality: existence_only_after_logical_delete_filter
+fields:
+  id: {type: string, role: physical_key}
+  sales_order_code: {type: string, role: business_key, nullable: false}
+  company_code: {type: string, role: cargo_owner}
+  facility_code: {type: string, role: warehouse_key}
+  store_code: {type: string, role: customer_key}
+  store_name: {type: string, role: customer_name}
+  order_type: {type: string, role: order_type, description: SO07 identifies the social-commerce order type on the order header.}
+  created: {type: datetime, role: order_create_time}
+  status: {type: string, role: order_status, description: Display-only order status; never substitute it for order_type.}
+  deleted_flag: {type: int, role: logical_delete}
+  updated: {type: datetime, role: freshness}
+  _fdl_marked_deleted: {type: string, role: logical_delete}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_sales_order_header.yaml
+  semantic_changes_require_approval: true
+  key_quality:
+    enabled: true
+    lookback_days: 30

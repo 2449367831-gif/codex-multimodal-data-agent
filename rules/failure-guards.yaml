@@ -1,0 +1,55 @@
+schema_version: 1.0.0
+version: 2026-09-01.1
+guards:
+  - id: no_scope_carryover
+    observed_failure: A new request inherited HJXH, finished-goods, warehouse, or channel filters from an earlier question.
+    prevention: Rebuild the request scope capsule; omitted dimensions are ALL.
+    severity: blocking
+  - id: no_cross_metric_validation
+    observed_failure: A sales-only request was delayed or rejected by inventory freshness or inventory-bound checks.
+    prevention: Run common checks plus only validations declared by the selected metric or its explicit composite dependencies.
+    severity: blocking
+  - id: no_raw_source_order_join
+    observed_failure: Duplicate sales-order header versions multiplied shipment detail.
+    prevention: Use EXISTS or a distinct valid source-order key set after deletion filtering.
+    severity: blocking
+  - id: exact_sales_status_variant
+    observed_failure: Old 701 and 901 status evidence was merged into the current 700 and 900 middle-platform contract.
+    prevention: Use the selected contract status list exactly; historical examples never widen it.
+    severity: blocking
+  - id: turnover_component_scope_equivalence
+    observed_failure: Inventory used an operating-warehouse profile while outbound used a broader warehouse universe, materially changing turnover days.
+    prevention: Resolve one owner, SKU, warehouse-profile, unit, and grain capsule and prove both components implement it.
+    severity: blocking
+  - id: no_implicit_current_stock_for_historical_turnover
+    observed_failure: An explicitly requested historical snapshot was replaced with current stock, or a prior sales interval alone incorrectly forced a historical numerator.
+    prevention: The user-confirmed default is current available finished-goods inventory plus in-transit, even for a prior sales interval. Use the exact period-end snapshot only when explicitly requested or selected; never substitute current stock or a nearby snapshot for that request.
+    severity: blocking
+  - id: finished_goods_scope_is_fixed
+    observed_failure: Turnover mixed all inventory SKUs with finished-goods sales or joined duplicate SKU-master rows into either component.
+    prevention: Deduplicate master_sku by SKU, require sku_group 50 in both components, and apply any narrower SKU scope inside that fixed population.
+    severity: blocking
+  - id: no_average_of_ratios
+    observed_failure: Lower-grain turnover ratios were averaged to obtain a total.
+    prevention: Divide summed stock by summed daily outbound at the requested grain.
+    severity: blocking
+  - id: transit_variant_must_be_selected
+    observed_failure: Full requested transit and remaining-unreceived transit were treated as one corrected formula.
+    prevention: Ask for the named variant and preserve its status rules and quantity basis.
+    severity: blocking
+  - id: snapshot_coverage_is_not_snapshot_existence
+    observed_failure: One available snapshot was treated as proof that a whole averaging period was complete.
+    prevention: Validate every required snapshot date and disclose missing days before period averages.
+    severity: blocking
+  - id: production_date_occupation_not_invented
+    observed_failure: Occupation without a production date was assigned to an arbitrary production batch.
+    prevention: Block precise production-date availability unless an approved allocation rule exists.
+    severity: blocking
+  - id: zero_rows_not_business_zero
+    observed_failure: A stale source or over-restrictive filter returned no rows and was reported as zero business activity.
+    prevention: Check source freshness, requested date coverage, and filter hit counts before reporting zero.
+    severity: blocking
+  - id: generated_sql_is_not_a_result
+    observed_failure: A generated query or health response was presented as a completed business answer.
+    prevention: A numeric answer requires a successful Doris tool result in the same turn.
+    severity: blocking

@@ -1,0 +1,606 @@
+catalog_schema_version: 1.0.0
+catalog_id: royal-tiger-source-project-logic
+catalog_version: 2026.08.29.3
+status: imported_candidate
+source_project:
+  label: 原皇家小虎数仓取数项目
+  source_root_label: D:\\数仓取数规则
+  # Keep dates as strings so the catalog can be serialized into the Codex context.
+  snapshot_date: "2026-08-25"
+  primary_documents:
+    - knowledge/source-project/docs/业务取数Agent_取数逻辑总册_20260825.md
+    - knowledge/source-project/docs/pickup-table-rules.md
+    - knowledge/source-project/docs/线下提货水位项目_服务器Codex接管指引.md
+  imported_scope:
+    # This is a curated, reviewable snapshot rather than a byte-for-byte copy
+    # of every file under the source workspace.
+    imported_sql_files: 21
+    source_sql_files_reviewed: 28
+    known_unlisted_sql_files: 7
+    doris_query_scripts: 16
+    # The imported core directory contains the 13 maintained (non-*original.sql)
+    # variants. The three historical *_original.sql files remain excluded.
+    imported_core_sql_files: 13
+    imported_deliverable_sql_files: 8
+    source_script_files_reviewed: 35
+    known_unlisted_script_files: 19
+    source_document_files_reviewed: 29
+    known_unlisted_document_files: 26
+  imported_script_files:
+    - knowledge/source-project/online_inventory_alert/inventory_alert.py
+    - knowledge/source-project/scripts/build_stale_inventory_with_doris.py
+    - knowledge/source-project/scripts/build_supply_chain_multidim_attachment.py
+    - knowledge/source-project/scripts/channel_bag_weekly_report.py
+    - knowledge/source-project/scripts/export_supply_chain_sheet_updates.py
+    - knowledge/source-project/scripts/generate_active_sku_png.py
+    - knowledge/source-project/scripts/generate_lingshi_dashboard.py
+    - knowledge/source-project/scripts/generate_planning_weekly_report.py
+    - knowledge/source-project/scripts/generate_supply_chain_monthly_report.py
+    - knowledge/source-project/scripts/generate_warehouse_tonnage_image.py
+    - knowledge/source-project/scripts/prepare_channel_bag_weekly_data.py
+    - knowledge/source-project/scripts/query_requested_sku_names_20260723.py
+    - knowledge/source-project/scripts/refresh_pickup_data.py
+    - knowledge/source-project/supply-chain-cockpit/scripts/inspect_doris_scope.py
+    - knowledge/source-project/supply-chain-cockpit/scripts/refresh_dashboard_data.py
+    - knowledge/source-project/tiger_sausage_inventory_report/tiger_sausage_inventory.py
+  excluded_from_import:
+    - build/
+    - dist/
+    - deploy/
+    - node_modules/
+    - .venv/
+    - runtime outputs and credentials
+    - unlisted business candidates pending source-contract and metric approval
+    - historical *_original.sql variants kept as review-only evidence
+governance:
+  authority_order:
+    - explicit_current_user_instruction
+    - approved_current_metric_contract
+    - approved_source_project_variant
+    - imported_source_project_logic
+    - historical_sql_or_handoff_copy
+  imported_logic_is_executable: false
+  imported_logic_policy: "This catalog is retrieval evidence until a versioned metric/profile, source contracts, SQL template, golden cases, freshness evidence, reconciliation evidence, and business approval exist."
+  no_silent_scope_inheritance: true
+  unmentioned_owner_sku_warehouse_channel: ALL
+  never_global_defaults:
+    - HJXH
+    - sku_group=50
+    - operating_warehouse_filter
+    - inventory_status_filter
+    - 60_or_75_day_production_window
+    - community_order_replacement
+  historical_only_patterns:
+    - "*_original.sql"
+    - deploy/
+    - dist/
+    - tmp/
+  source_boundaries:
+    - DMS data is not Doris inventory or shipment data.
+    - Excel/static mapping is not a Doris dimension until separately reconciled.
+    - 3D snapshots and realtime inventory must be reported as separate sources before merging.
+unresolved_business_decisions:
+  - id: current_contract.inventory_available_formula_mismatch
+    impact: blocking
+    current_project_contract: metrics/inventory.available_realtime.yaml
+    imported_maintained_logic: knowledge/source-project/sql/realtime_stock.sql
+    differences:
+      - "inventory status: current contract uses status='0'; maintained SQL uses inventory_status in ('ZP', NULL, '')"
+      - "lock/freeze: current contract treats lock and freeze as numeric deductions; maintained SQL safely converts character stock_lock and chooses lock versus freeze"
+      - "occupation: current contract deducts lock + freeze; maintained SQL aggregates the selected occupation freeze quantity"
+      - "scope: maintained pickup variant additionally requires HJXH, sku_group='50', operating WMS types 10/11 and excludes 残次 warehouses"
+    required_action: "Do not silently replace the generic contract. Ask whether the user wants the generic current contract or the candidate HJXH pickup variant, then reconcile and approve a new version."
+  - id: pickup.offline_sales_basis
+    impact: material
+    current_project_text: "Current pickup SQL sums community platform + community distribution + offline other (all Z001). Earlier business text uses offline other + other."
+    candidates:
+      - "Z001 community platform + Z001 community distribution + Z001 other"
+      - "Z001 offline other + type outside Z001/Z004"
+    required_action: business_owner_confirmation_and_before_after_reconciliation
+  - id: pickup.box_spec_conflict
+    impact: material
+    affected_skus: [5001080014000035, 5001080015000035]
+    observed_values: [100, 240]
+    required_action: confirm effective box specification; never choose MAX or MIN silently
+  - id: pickup.production_window
+    impact: material
+    candidates: [60_days, 75_days]
+    current_pickup_document: 60_days
+    lingshi_dashboard_document: 75_days
+    required_action: keep as separate variants until confirmed
+  - id: warehouse.operating_mapping
+    impact: material
+    variants:
+      - "pickup: master_wms.wms_type in (10,11) and exclude warehouse name containing 残次"
+      - "turnover: explicit business-warehouse node/type exclusions"
+      - "lingshi: code/Excel route mapping and FDS exceptions"
+      - "online_alert: warehouse-to-region mapping from configuration"
+    required_action: select a named report/profile; do not invent a universal mapping
+logic_families:
+  - id: inventory.realtime_hjxh_operating
+    display_name: 提货项目实时可用库存（HJXH 成品经营仓）
+    status: candidate_variant
+    aliases: [提货实时库存, HJXH可用库存, 成品经营仓库存]
+    source_files:
+      - knowledge/source-project/sql/realtime_stock.sql
+      - knowledge/source-project/docs/pickup-table-rules.md
+    output_grain: cargo_owner_id + wms_code + sku_code
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_occupy
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_wms
+    joins:
+      - "aggregate inventory and occupation independently by cargo_owner_id + wms_code + sku_code"
+      - "master_sku.sku_code = inventory.sku_code"
+      - "master_wms.wms_code = inventory.wms_code"
+    filters:
+      owner: "cargo_owner_id = 'HJXH'"
+      inventory_quality: "inventory_status = 'ZP' OR inventory_status IS NULL OR inventory_status = ''"
+      warehouse: "master_wms.wms_type IN (10,11) AND master_wms.wms_desc NOT LIKE '%残次%'"
+      sku: "master_sku.sku_group = '50'"
+      record_status: "use the source-project SQL's effective record condition; verify live delete/status values before promotion"
+    time_window:
+      inventory: current_state
+      occupation: "created_date >= DATE_SUB(NOW(), INTERVAL 60 DAY)"
+    unit: EA
+    formula: "GREATEST(all_stock_qty - allocate_qty - CASE WHEN stock_lock_qty = 0 THEN freeze_qty ELSE stock_lock_qty END, 0)"
+    field_notes:
+      - "stock_lock is a character field in the maintained SQL; convert only safe numeric values"
+      - "occupation in the maintained realtime SQL aggregates freeze_quantity as allocate_qty"
+      - "recent_stock_qty is gross production-date stock and is not available stock"
+    freshness_checks:
+      - "MAX(scm_warehous_manage.stock_change_time)"
+      - "report exact source timestamp, not only a date"
+    reconciliation:
+      - "reconcile inventory, occupation, and master-dimension key counts before joining"
+      - "quantify negative source quantities and available values clipped by GREATEST"
+  - id: inventory.recent_production_60d_3d_priority
+    display_name: 近60天生产库存（三方3D优先）
+    status: candidate_variant
+    aliases: [近60天库存, 生产日期库存, 三方仓近日期库存]
+    source_files:
+      - knowledge/source-project/sql/recent_stock_60d.sql
+      - knowledge/source-project/sql/third_party_stock_60d.sql
+    output_grain: cargo_owner_id + wms_code + sku_code
+    source_tables:
+      - ywzt_ods.scm_warehous_manage_3d
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_wms
+    joins:
+      - "select MAX(DATE(created_date)) as snapshot_date from the 3D source, then use that full day"
+      - "3D rows take precedence over realtime rows by warehouse + SKU whenever a row exists, including a zero quantity row"
+      - "realtime recent_stock_qty is fallback only when the 3D key is absent"
+    filters:
+      owner: "cargo_owner_id = 'HJXH'"
+      sku: "master_sku.sku_group = '50'"
+      production_date: "production_date > current business date - INTERVAL 60 DAY"
+    unit: EA
+    freshness_checks:
+      - "3D snapshot date exists and is reported"
+      - "do not silently substitute an older or nearby snapshot"
+    reconciliation:
+      - "compare 3D-key count, realtime fallback-key count, and overlap count"
+  - id: pickup.offline_availability
+    display_name: 线下可提货水位
+    status: candidate_composite
+    aliases: [线下可提货, 提货水位, 可提货箱数, 提货库存天数]
+    source_files:
+      - knowledge/source-project/sql/realtime_stock.sql
+      - knowledge/source-project/sql/third_party_stock_60d.sql
+      - knowledge/source-project/sql/offline_sales_7d_warehouse_sku.sql
+      - knowledge/source-project/sql/offline_sales_7d.sql
+      - knowledge/source-project/sql/sku_box_unit.sql
+      - knowledge/source-project/docs/线下提货水位项目_服务器Codex接管指引.md
+    output_grain: warehouse + SKU
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_manage_3d
+      - ywzt_ods.scm_warehous_occupy
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.master_store
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+      - ywzt_ods.master_wms
+    joins:
+      - "build realtime stock, 3D recent stock, seven-day sales, and box-unit datasets independently"
+      - "join final datasets on warehouse + SKU; preserve the union of keys"
+      - "sales-order header is existence-only; use EXISTS or distinct order keys"
+    filters:
+      owner: HJXH
+      sku: "master_sku.sku_group = '50'"
+      warehouse: "pickup variant uses wms_type 10/11 and excludes 残次"
+      shipment: "outbound_code LIKE 'HJXH%'; status IN (700,900,701,901); order type JYCK/HHCK/BFCK/QTCK or SO%"
+    time_window:
+      sales: "last 7 complete natural days: ship_at >= current_date - 7 days and ship_at < current_date"
+      production: 60_days
+    unit:
+      stored: EA
+      displayed: boxes
+      box_source: "master_sku_unit where unit = 40 and ea_convert_quantity > 0"
+      rounding: floor_for_pickup_display
+    formula:
+      online_reserved_remaining_ea: "GREATEST(available_inventory_ea - online_sales_7d_ea, 0)"
+      offline_pickup_ea: "LEAST(recent_production_inventory_ea, online_reserved_remaining_ea)"
+      pickup_boxes: "FLOOR(offline_pickup_ea / box_unit)"
+      offline_daily_boxes: "offline_sales_7d_ea / box_unit / 7 (do not floor numerator before averaging)"
+      stock_days: "FLOOR(pickup_boxes / offline_daily_boxes); null/-- when denominator <= 0"
+    freshness_checks:
+      - "stock_change_time"
+      - "latest 3D snapshot date"
+      - "shipment MAX(ship_at) must cover the seven complete days"
+    reconciliation:
+      - "3D priority and fallback key counts"
+      - "online reservation plus pickup bound"
+      - "offline channel components versus total offline sales"
+      - "box-unit missing and multi-unit exception list"
+    clarification_required:
+      - pickup.offline_sales_basis
+      - pickup.box_spec_conflict
+      - pickup.production_window
+  - id: sales.channel_outbound_community_replacement
+    display_name: 渠道出库（社区平台订单替换）
+    status: candidate_variant
+    aliases: [渠道出库, 社区团购出库, 社区订单替换, 平台出库]
+    source_files:
+      - knowledge/source-project/sql/channel_shipment_with_community_order_replacement.sql
+      - knowledge/source-project/sql/channel_shipment_dynamic_with_community_order_replacement.sql
+      - knowledge/source-project/sql/channel_shipment_warehouse_dynamic_with_community_order_replacement.sql
+    output_grain: date + SKU; optional warehouse
+    source_tables:
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.scm_sales_order_detail
+      - ywzt_ods.master_store
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+      - ywzt_ods.master_wms
+    joins:
+      - "shipment branch excludes type=Z001 and group1=03 before UNION ALL"
+      - "community branch uses sales-order detail request_qty"
+      - "community date is DATE_SUB(order_header.created, INTERVAL 1 DAY)"
+      - "reaggregate after UNION ALL at the requested grain"
+    filters:
+      shipment_status: [700, 900, 701, 901]
+      community_store: "master_store.type = 'Z001' AND master_store.group1 = '03'"
+    units:
+      base: EA
+      optional: boxes_by_master_sku_unit
+    forbidden_substitutions:
+      - "do not replace request_qty with ship_qty in the community branch"
+      - "do not apply this replacement to generic actual outbound"
+    reconciliation:
+      - "shipment branch + community branch = final total"
+      - "prove excluded community shipment rows do not remain in the shipment branch"
+      - "state DY versus DY+WXSPHXD grouping by selected SQL variant"
+    clarification_required:
+      - "choose date+SKU, date+warehouse+SKU, or dynamic variant"
+      - "choose actual shipment or community replacement"
+  - id: sales.valid_outbound_project
+    display_name: 原项目有效销售出库
+    status: candidate_reference
+    aliases: [有效销售出库, 实发出库, 销售出库]
+    source_files:
+      - knowledge/source-project/sql/offline_sales_7d.sql
+      - knowledge/source-project/sql/channel_shipment_with_community_order_replacement.sql
+    output_grain: date + warehouse + SKU + channel
+    source_tables:
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.scm_sales_order_detail
+      - ywzt_ods.master_store
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+      - ywzt_ods.master_wms
+    filters:
+      statuses: [700, 900, 701, 901]
+      order_types: [JYCK, HHCK, BFCK, QTCK, SO%]
+      channels:
+        online: "type = Z004"
+        offline: "type = Z001"
+        community_platform: "type = Z001 and group1 = 03"
+        community_distribution: "type = Z001 and price_group = 122"
+    measures:
+      actual_ea: SUM(ship_qty)
+      order_count: COUNT_DISTINCT(outbound_code)
+    reconciliation:
+      - "channel buckets must be mutually exclusive for the selected report"
+      - "request_qty and ship_qty remain separate measures"
+  - id: dashboard.lingshi_henmang
+    display_name: 零食很忙看板
+    status: candidate_specialized
+    aliases: [零食很忙, 零食很忙看板, FDS看板]
+    source_files:
+      - knowledge/source-project/sql/零食很忙看板_当前程序SQL_20260803.sql
+    output_grain: routed_dashboard_warehouse + SKU
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_in_transit_backup
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.scm_sales_shipment_allocate_wms
+      - ywzt_ods.scm_po_header
+      - ywzt_ods.scm_po_detail
+      - ywzt_ods.scm_transfer_order_header
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+      - ywzt_ods.master_store
+      - ywzt_ods.master_wms
+    special_rules:
+      - "Python route maps source warehouses to dashboard warehouses"
+      - "specific FDS SKUs can use a different cargo owner/warehouse"
+      - "production-date window is 75 days for this dashboard"
+      - "SKU names containing 盒 are exempt from the production-date filter"
+      - "inventory is gross SUM(in_stock_quantity), without occupation/lock/freeze deductions"
+    forbidden_substitutions:
+      - "do not use this gross dashboard inventory as generic available inventory"
+      - "do not apply the 75-day rule to the pickup 60-day variant"
+  - id: sku.active_90d
+    display_name: 近90天活跃成品 SKU
+    status: candidate_specialized
+    aliases: [活跃SKU, 动销SKU, 90天动销]
+    source_files:
+      - knowledge/source-project/scripts/generate_active_sku_png.py
+    output_grain: SKU
+    source_tables:
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+    filters:
+      date_window: "last 90 days of valid outbound"
+      sku: "master_sku.sku_group = '50'"
+    measures: [last_ship_at, outbound_90d_ea, box_unit]
+    reconciliation: [valid_outbound_status, duplicate_sku_dimension, missing_box_unit]
+  - id: report.channel_bag_weekly
+    display_name: 渠道袋数周报
+    status: candidate_specialized
+    aliases: [渠道袋数, 袋数周报, 渠道周报]
+    source_files:
+      - knowledge/source-project/scripts/channel_bag_weekly_report.py
+      - knowledge/source-project/scripts/prepare_channel_bag_weekly_data.py
+    output_grain: week + SKU + channel
+    source_tables:
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.master_store
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_wms
+      - ywzt_ods.master_sku_unit
+    special_rules:
+      - "current and previous periods are each seven continuous days"
+      - "channel attribution comes from the maintained Excel mapping, not a guessed store field"
+      - "visible online total may intentionally exclude some detailed platform buckets"
+    clarification_required: [mapping_file_version, actual_or_replacement_shipment_basis]
+  - id: alert.online_inventory_region
+    display_name: 线上缺货区域预警
+    status: candidate_specialized
+    aliases: [线上缺货预警, 区域缺货, 上下架预警]
+    source_files:
+      - knowledge/source-project/online_inventory_alert/inventory_alert.py
+    output_grain: region + substitution_group
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_occupy
+      - ywzt_ods.scm_stock_history
+      - ywzt_ods.scm_transfer_order_header
+      - ywzt_ods.scm_transfer_order_detail
+      - ywzt_ods.scm_po_header
+      - ywzt_ods.scm_po_detail
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_store
+      - ywzt_ods.master_wms
+    special_rules:
+      - "aggregate available inventory by covered warehouse and replacement group"
+      - "less than 10 bags for two consecutive pushes means down; at least 10 means up"
+      - "source-wide missing or sharp shrink blocks push and state update"
+      - "warehouse-to-region mapping is configuration-owned"
+  - id: report.tiger_sausage_inventory
+    display_name: 虎皮肉肠分仓库存日报
+    status: candidate_specialized
+    aliases: [虎皮肉肠库存, 肉肠库存日报]
+    source_files:
+      - knowledge/source-project/tiger_sausage_inventory_report/tiger_sausage_inventory.py
+    output_grain: warehouse + configured_SKU
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_occupy
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+      - ywzt_ods.master_wms
+    special_rules:
+      - "HJXH and four configured SKUs only"
+      - "occupation status != 1"
+      - "box result defaults to two decimal places; floor/ceil/round is configurable"
+  - id: supply_chain.cockpit
+    display_name: 供应链驾驶舱
+    status: candidate_specialized
+    aliases: [供应链驾驶舱, 供应链库存风险, 采购在途预测]
+    source_files:
+      - knowledge/source-project/supply-chain-cockpit/scripts/refresh_dashboard_data.py
+    output_grain: region_or_warehouse + product_category
+    source_tables:
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_occupy
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_po_header
+      - ywzt_ods.scm_po_detail
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_wms
+    formulas:
+      inventory_amount: "available_inventory * latest_valid_standard_purchase_price_within_365_days"
+      transit_qty: "GREATEST(arrival_qty, application_qty - received_qty, 0)"
+      transit_status: "12 through 16"
+      forecast: "six complete months weighted 5/10/15/20/20/30 plus three-month trend capped at +/-20%"
+      coverage_days: "available_inventory / (last_30d_outbound / 30)"
+    thresholds: ["<14 replenish", "14-30 observe", ">60 pause purchase", "no sales with stock pause purchase"]
+  - id: warehouse.tonnage
+    display_name: 仓库出入库吨数
+    status: candidate_specialized
+    aliases: [仓库吨数, 出入库吨数, 入库吨数, 出库吨数]
+    source_files:
+      - knowledge/source-project/scripts/generate_warehouse_tonnage_image.py
+    output_grain: date_range + warehouse
+    source_tables:
+      - ywzt_ods.scm_warehous_header
+      - ywzt_ods.scm_warehous_detail
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_wms
+    formulas:
+      inbound_tons: "SUM(received_quantity * net_weight) / 1000"
+      outbound_tons: "SUM(ship_qty * net_weight) / 1000"
+    filters:
+      finished_goods: "only when this report contract is selected"
+      two_c: "terms_of_shipment = '20'"
+      transfer_outbound: "DBCK"
+      inbound_types: "purchase and transfer separated by warehous_type 10/11"
+    reconciliation: [missing_net_weight, conflicting_net_weight, distinct_outbound_code]
+  - id: inventory.stale_365d
+    display_name: 365天货架期临期库存
+    status: candidate_specialized
+    aliases: [临期库存, 过期库存, 库存剩余天数]
+    source_files:
+      - knowledge/source-project/scripts/build_stale_inventory_with_doris.py
+    output_grain: warehouse + SKU + production_date
+    source_tables: [ywzt_ods.scm_warehous_manage, ywzt_ods.master_sku, ywzt_ods.master_wms]
+    formula: "expiry_date = production_date + 365 days; remaining_days = expiry_date - business_today"
+    thresholds: ["<=90", "<=180", "<=270", ">270"]
+    clarification_required: [shelf_life_by_sku_or_fixed_365_days]
+  - id: dms.shortage_registration
+    display_name: DMS 缺货登记
+    status: candidate_separate_source
+    aliases: [DMS缺货, 缺货登记, 缺货订单]
+    source_files:
+      - knowledge/source-project/sql/常温品看板_DMS_近30天.sql
+    output_grain: order + SKU + warehouse
+    source_tables:
+      - dms_ods.t_sales_order
+      - dms_ods.t_sales_order_detail
+    special_rules:
+      - "deduplicate each sales_order_code + item_code + sku_code by latest updated/created/id"
+      - "shortage means latest stock_quantity = 0"
+      - "shortage bags = box_gauge * req_box_quantity + req_bag_quantity"
+      - "do not infer shortage as request_qty - ship_qty"
+      - "do not merge DMS shortage with Doris inventory or shipment totals without a separate reconciliation"
+  - id: report.dezhou_inventory_sales_purchase
+    display_name: 德州线库存出库采购
+    status: candidate_specialized
+    aliases: [德州线, 德州库存, 德州采购出库]
+    source_files:
+      - knowledge/source-project/sql/dezhou_line_inventory_sales_purchase.sql
+      - knowledge/source-project/sql/dezhou_line_inventory_sales_purchase_bi.sql
+    output_grain: warehouse + SKU
+    source_tables:
+      - ywzt_ods.scm_warehous_manage_backups
+      - ywzt_ods.scm_in_transit_backup
+      - ywzt_ods.scm_warehous_header
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.scm_po_header
+      - ywzt_ods.scm_po_detail
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_wms
+    special_rules:
+      - "inventory, outbound, and purchasing are separate facts and must be aggregated before joining"
+      - "BI SQL is a display/parameter adaptation, not a different business definition"
+      - "source and parameter differences must be reconciled before promotion"
+  - id: report.deliverable_sql_package_20240824
+    display_name: 2026-08-24 Doris 报表 SQL 包
+    status: candidate_reference
+    aliases: [仓库单量预测, 出库异常寻源, 线下销售单, 销售订单明细, 库存明细]
+    source_files:
+      - knowledge/source-project/sql/deliverables/01_仓库单量预测.sql
+      - knowledge/source-project/sql/deliverables/02_出库单异常寻源报表.sql
+      - knowledge/source-project/sql/deliverables/03_线下销售单.sql
+      - knowledge/source-project/sql/deliverables/04_销售订单明细.sql
+      - knowledge/source-project/sql/deliverables/05_库存明细.sql
+      - knowledge/source-project/sql/deliverables/06_商品仓库平台出库统计.sql
+      - knowledge/source-project/sql/deliverables/07_商品平台出库统计.sql
+      - knowledge/source-project/sql/deliverables/08_用车申请表_查询模板.sql
+    source_tables:
+      - ywzt_ods.master_sku
+      - ywzt_ods.master_sku_unit
+      - ywzt_ods.master_store
+      - ywzt_ods.master_wms
+      - ywzt_ods.sys_enum
+      - ywzt_ods.scm_wms_daily_summary
+      - ywzt_ods.scm_outbound_rep_conf1
+      - ywzt_ods.scm_return_order_header
+      - ywzt_ods.scm_return_order_detail
+      - ywzt_ods.scm_stock_history
+      - ywzt_ods.scm_transfer_order_header
+      - ywzt_ods.scm_transfer_order_detail
+      - ywzt_ods.scm_sales_shipment_allocate_wms
+      - ywzt_ods.scm_sales_order_detail
+      - ywzt_ods.scm_sales_order_header
+      - ywzt_ods.scm_sales_shipment_header
+      - ywzt_ods.scm_sales_shipment_detail
+      - ywzt_ods.scm_warehous_manage
+      - ywzt_ods.scm_warehous_occupy
+      - ywzt_ods.scm_po_header
+      - ywzt_ods.scm_po_detail
+      - ywzt_ods.scm_vehicle_application
+    special_rules:
+      - "01 uses scm_wms_daily_summary and maps 10983372 to WMS000018"
+      - "02 traces missing outbound source configuration; only HJXH%"
+      - "03 has some blank or fixed-zero amount fields; do not call them real amounts"
+      - "04 aggregates returns by source order + SKU before net shipment/payment"
+      - "05 keeps available, transit, seven-day outbound and coverage days as distinct facts"
+      - "06/07 platform reports use their own supplied shipment basis; do not silently apply community replacement"
+      - "08 is a field template without confirmed business-status filters"
+source_table_inventory:
+  declared_in_current_project: 7
+  referenced_by_imported_project_logic: 28
+  missing_doris_contracts:
+    - ywzt_ods.master_sku_unit
+    - ywzt_ods.master_store
+    - ywzt_ods.master_wms
+    - ywzt_ods.scm_sales_order_detail
+    - ywzt_ods.scm_sales_shipment_allocate_wms
+    - ywzt_ods.scm_stock_history
+    - ywzt_ods.scm_warehous_manage_3d
+    - ywzt_ods.scm_po_header
+    - ywzt_ods.scm_po_detail
+    - ywzt_ods.scm_transfer_order_header
+    - ywzt_ods.scm_transfer_order_detail
+    - ywzt_ods.scm_warehous_header
+    - ywzt_ods.scm_warehous_detail
+    - ywzt_ods.scm_in_transit_backup
+    - ywzt_ods.scm_outbound_rep_conf1
+    - ywzt_ods.scm_return_order_header
+    - ywzt_ods.scm_return_order_detail
+    - ywzt_ods.scm_vehicle_application
+    - ywzt_ods.scm_wms_daily_summary
+  separate_sources:
+    - dms_ods.t_sales_order
+    - dms_ods.t_sales_order_detail
+  auxiliary_lookup_tables:
+    - ywzt_ods.sys_enum
+  source_table_scan_note: "sys_enum is a lookup table used by deliverables/03 and deliverables/04; it is tracked separately from the 28-table business-fact count."
+  minimum_fields_to_verify_before_sql:
+    - business_date_field
+    - logical_delete_or_status_field
+    - business_key_and_duplicate_rate
+    - measure_field_and_numeric_type
+    - dimension_mapping_key
+    - freshness_maximum
+  current_live_observation_note: "candidates/latest_live_snapshot.json is evidence for schema existence only; it does not approve any semantic contract."
+retrieval_instructions:
+  - "Classify the current question against logic_families before writing SQL."
+  - "Use the exact source_files for the selected family as a reference; do not merge neighboring families because names look similar."
+  - "If a family is candidate, expose its status and unresolved decisions; do not present its number as an approved metric."
+  - "For generic inventory, outbound, boxes, or turnover, ask which variant changes the result when the request does not specify it."
+  - "Use current project approved contracts first; this catalog cannot override them."

@@ -1,0 +1,31 @@
+contract_schema_version: 1.0.0
+id: doris_ywzt_ods
+version: 1.0.0
+status: active
+display_name: Doris warehouse - ywzt_ods
+dialect: mysql
+connection_protocol: mysql
+read_only: true
+allowed_statements:
+  - SELECT
+  - WITH_SELECT
+forbidden_keywords:
+  - INSERT
+  - UPDATE
+  - DELETE
+  - CREATE
+  - ALTER
+  - DROP
+  - TRUNCATE
+  - MERGE
+  - LOAD
+  - CALL
+  - GRANT
+  - REVOKE
+  - OUTFILE
+query_policy:
+  max_rows: 10000
+  timeout_seconds: 60
+  require_single_statement: true
+  require_fully_qualified_table: true
+notes: Apache Doris uses the MySQL network protocol. Credentials belong in the runtime secret store, never in this repository.

@@ -1,0 +1,151 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_7d_realtime
+version: 3.0.0
+status: deprecated
+business_concept: inventory.turnover
+variant: reviewed_dual_window_template
+display_name: 中心仓7天与分仓14天周转图片
+aliases:
+- 中心仓周转图片
+- 分仓周转图片
+- 近14天周转图片
+- 仓库周转图
+- 库存周转图片
+business_definition: The fourteen-day warehouse image uses the requester-approved
+  nine-center, 42-subwarehouse template. Center summaries roll up each center and
+  its listed subwarehouses using seven complete days of actual finished-goods shipments.
+  Detail panels use fourteen complete days. Both windows use the same current available-plus-transit
+  inventory and the same exclusive end date in one query. Other explicitly requested
+  movement lengths retain the version-2 eight-center single-window behavior. This
+  is not a reproduction of the W37 historical data.
+applicability:
+  applicable_when:
+  - User requests a center and subwarehouse turnover image.
+  not_applicable_when:
+  - User requests reproduction of historical W37 values or a historical inventory
+    snapshot.
+  required_signals:
+  - turnover
+  - center_warehouse
+  - subwarehouse
+  negative_signals:
+  - historical_snapshot
+  - raw_sql
+  - row_detail
+clarification:
+  ambiguity_group: turnover_component_basis
+  question: 14天仓库模板已确认中心7天、分仓14天；只有用户要求不同库存或历史口径时才确认差异。
+validity:
+  effective_from: '2026-09-20T00:00:00+08:00'
+  effective_to: '2026-10-10T00:00:00+08:00'
+  supersedes:
+  - inventory.turnover_7d_realtime@2.0.0
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-09-20T00:00:00+08:00'
+grain: owner + warehouse + finished-goods SKU, then physical warehouse and explicit
+  center rollup
+unit: EA and days
+time_window:
+  timezone: Asia/Shanghai
+  field: ship_at
+  interval:
+    start: inclusive
+    end: exclusive
+  center_days_for_14d_template: 7
+  detail_days_for_14d_template: 14
+  end: today 00:00 or explicit exclusive end date
+  denominator: unrounded actual movement total divided by each layer's complete natural
+    days
+formula: turnover_days = (available_quantity + in_transit_quantity) / (actual_finished_goods_ship_qty
+  / layer_window_days)
+sources:
+  required:
+  - ywzt_ods.master_wms
+  - ywzt_ods.master_sku
+  - ywzt_ods.sku_inventory
+  - ywzt_ods.scm_sales_shipment_header
+  - ywzt_ods.scm_sales_shipment_detail
+  - ywzt_ods.scm_sales_order_header
+parameters:
+  cargo_owner:
+    required: false
+    default: HJXH
+    type: string
+  inventory_basis:
+    required: true
+    default: available_plus_transit
+    type: enum
+  inventory_status:
+    required: true
+    default: ALL
+    type: enum
+  end_date_exclusive:
+    required: false
+    type: date
+  window_days:
+    required: false
+    type: integer
+    default: 14
+    minimum: 1
+    maximum: 3650
+filters:
+  template_profile: profiles/hjxh_turnover_template_v3.yaml
+  template_applies_to_window_days: 14
+  warehouse_scope: exact 9 centers and 42 listed subwarehouses; never add unlisted
+    master children
+  mapping_rule: user-approved report hierarchy by verified code overrides master parent;
+    do not mutate master data
+  warehouse_validation: active unique master mapping and exact verified name required
+    for all 51 codes; missing or changed mappings block
+  center_detail_additivity: center = own physical warehouse + listed details, each
+    physical warehouse counted exactly once
+  sku_scope: master_sku.sku_group = '50'
+  inventory_join_rule: aggregate sku_inventory by owner + exact warehouse name + SKU
+    before joining unique report warehouse scope
+  outbound_scope: ship_qty; nondeleted owner-qualified sales-order-backed shipments;
+    statuses 700/900/701/901; approved sales outbound types; exclude DBCK
+  quantity_rounding: show daily sales as nearest integer HALF_UP; compute turnover
+    from unrounded aggregates, show two decimals
+  missing_inventory: zero only under the previously confirmed zero_warn profile, with
+    an explicit warning
+  legacy_other_windows: inventory.turnover_7d_realtime@2.0.0
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- master_data_freshness
+- component_scope_equivalence
+- exact_operating_center_scope
+- warehouse_mapping_integrity
+- inventory_name_uniqueness
+- inventory_composite_key_uniqueness
+- shipment_status_and_deletion
+- sales_order_non_multiplication
+- shipment_header_non_multiplication
+- inventory_net_nonnegative
+- control_total_reconciliation
+- complete_natural_days
+- turnover_ratio_aggregation
+reconciliation:
+- Reconcile independent seven-day and fourteen-day totals and detail row counts.
+- Both layers must contain the same 51 unique physical warehouse identities and inventory
+  values.
+- Center total equals sum of center rollups, not center plus already-included detail
+  panels.
+- Do not sum displayed rounded daily-sales values to calculate total turnover.
+execution:
+  mode: composite
+depends_on:
+- inventory.finished_goods_realtime
+- sales.outbound_actual
+dependency_versions:
+  inventory.finished_goods_realtime: 2.0.0
+  sales.outbound_actual: 2.0.0
+notes: User approved separate center-7/detail-14 windows and inclusion of Guangzhou
+  Shunde on 2026-09-20. Active master lookup verified all 51 codes and names; the
+  screenshot supplies report hierarchy, not database parent truth. W37 remains a separate
+  unapproved historical reproduction candidate.
+updated_at: '2026-09-20'

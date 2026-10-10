@@ -1,0 +1,65 @@
+version: 1.0.0
+aliases:
+  dms.points_redemption:
+    - DMS积分兑换
+    - 积分兑换数量
+    - 积分兑换商品数量
+  sales.outbound_actual:
+    - actual sales outbound
+    - completed sales outbound
+    - actual outbound
+    - 实际销售出库量
+    - 销售出库量
+    - 销售发货量
+    - 销售发货
+    - 完成发货量
+    - 实际发货量
+    - 发货数量
+    - 发货量
+    - 实际出库量
+    - 实际出库
+  inventory.available_realtime:
+    - realtime available inventory
+    - current available inventory
+    - 实时可用库存
+    - 当前可用库存
+    - 可用库存
+  inventory.snapshot_quantity:
+    - historical inventory snapshot
+    - snapshot inventory
+    - 历史库存快照
+    - 库存快照
+    - 某日库存
+    - 历史库存
+  inventory.finished_goods_realtime:
+    - current realtime finished goods inventory
+    - 当前实时成品库存
+    - 实时成品库存
+  inventory.finished_goods_snapshot:
+    - period end finished goods inventory snapshot
+    - 区间末成品库存快照
+    - 历史成品库存快照
+  inventory.turnover_finished_goods_realtime:
+    - current realtime finished goods turnover
+    - 本月实时成品库存周转
+    - 当前实时成品库存周转
+    - 当前实时库存周转
+    - 实时成品库存周转
+    - 库存周转天数
+    - 周转天数
+    - 库存周转
+  inventory.turnover_finished_goods_snapshot:
+    - period end finished goods turnover
+    - 上月库存周转
+    - 历史库存周转
+    - 区间末成品库存周转
+    - 库存周转天数
+    - 周转天数
+    - 库存周转
+  inventory.turnover_7d_realtime:
+    - center warehouse turnover image
+    - subwarehouse turnover image
+    - 中心仓周转图片
+    - 分仓周转图片
+    - 近7天周转图片
+    - 仓库周转图

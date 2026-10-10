@@ -1,0 +1,65 @@
+contract_schema_version: 1.0.0
+id: sales.outbound_actual
+version: 1.0.0
+status: verified_template
+business_concept: sales.shipment_quantity
+variant: actual_completed_outbound
+display_name: 实际销售出库量
+aliases: [实际销售出库量, 销售出库量, 已完成出库量, 出库数量, 出库量, 销量, 销售数量, 销售量]
+business_definition: Actual completed outbound quantity for valid sales-origin shipments whose source sales order exists. It is not sales-order requested quantity and it is not a channel-specific order replacement metric.
+nearby_metrics_not_equivalent: [sales_order_request_quantity, community_order_based_shipment]
+applicability:
+  applicable_when:
+    - The user explicitly asks for actual or completed sales outbound quantity.
+    - The requested date belongs to the physical shipment completion time.
+  not_applicable_when:
+    - The user asks for sales-order requested quantity, planned quantity, or unshipped demand.
+    - A channel-specific rule replaces shipment facts with order facts.
+  required_signals: [actual_outbound_or_completed_shipment]
+  negative_signals: [order_request, planned_quantity, unshipped_demand, channel_replacement]
+clarification:
+  ambiguity_group: shipment_quantity_basis
+  question: 您要查实际完成出库量，还是订单请求量或特定渠道替换口径？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: unassigned
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + outbound_warehouse + SKU + ship_date, then aggregate to the requested output grain
+unit: EA
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+formula: SUM(d.ship_qty)
+sources:
+  required:
+    - ywzt_ods.scm_sales_shipment_header
+    - ywzt_ods.scm_sales_shipment_detail
+    - ywzt_ods.scm_sales_order_header
+  conditional:
+    - ywzt_ods.master_sku
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  cargo_owner: {required: false, default: ALL, sales_field: h.company_code}
+  sku_scope: {required: false, default: ALL, sales_field: d.sku_code}
+  warehouse_scope: {required: false, default: ALL, sales_field: h.facility_code}
+  output_grain: {required: true, examples: [total, ship_date, warehouse, sku]}
+filters:
+  completion_statuses: [700, 900, 701, 901]
+  valid_source_order_types: [JYCK, HHCK, BFCK, QTCK, "SO%"]
+  logical_delete: "IFNULL(h._fdl_marked_deleted, 'false') = 'false' AND IFNULL(d._fdl_marked_deleted, 'false') = 'false' AND the source-order EXISTS set contains only non-deleted rows"
+  shipment_header_deduplication: "After time, status, and deletion filters, reduce shipment header to one row per outbound_code before joining detail."
+  source_order_validity: "Require ref_order_type IN (JYCK, HHCK, BFCK, QTCK) or ref_order_type LIKE SO%, then use a correlated EXISTS over non-deleted sales_order_code; never directly join the sales-order header."
+required_validations: [single_statement_and_read_only, source_freshness, shipment_status_and_deletion, shipment_header_non_multiplication, sales_order_non_multiplication]
+execution:
+  mode: sql_template
+  template: sql_templates/sales.outbound_actual.sql
+template: sql_templates/sales.outbound_actual.sql
+notes: Finished goods, operating warehouses, channels, and weight conversion are not default filters. The valid source-order type set is part of this metric definition; other scope filters require the current task contract or an explicitly selected profile.
+updated_at: "2026-08-28"

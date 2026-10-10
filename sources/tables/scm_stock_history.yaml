@@ -1,0 +1,18 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_stock_history
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: inventory_snapshot_history
+grain: inventory history snapshot and SKU warehouse
+aggregate_key: [created_date, wms_code, sku_code]
+freshness: {field: created_date, check: key-only history table used to construct the inventory universe; it cannot replay historical quantities, expected_lag: 48h}
+fields:
+  cargo_owner_id: {type: string, role: cargo_owner}
+  wms_code: {type: string, role: warehouse_key}
+  sku_code: {type: string, role: sku_key}
+  created_date: {type: datetime, role: inventory_snapshot_time}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_stock_history.yaml
+  semantic_changes_require_approval: true

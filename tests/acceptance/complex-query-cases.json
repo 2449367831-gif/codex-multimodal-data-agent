@@ -1,0 +1,491 @@
+{
+  "version": "2026-09-10",
+  "spec": "docs/acceptance/complex-query-spec.md",
+  "method": "requirements-first; no expected live numeric answers",
+  "privacy": "SQL and fixture plans are internal; no raw database rows or credentials in evidence files",
+  "cases": [
+    {
+      "id": "T01",
+      "title": "昨天与最近 24 小时的区别",
+      "question": "查询昨天 HJXH 货主的有效销售出库数量和出库单数，按仓库汇总。昨天按北京时间自然日计算。",
+      "source_section": "T01",
+      "status": "verified",
+      "static_evidence": ["app/agent_core/sales_aggregation.py: ship_at half-open natural days, four completed statuses, ship_qty, owner-qualified outbound keys"],
+      "fixture_evidence": ["app/tests/test_sales_aggregation.py: duplicate headers/orders, multi-detail documents, owner scope, zero quantities and capacity boundaries", "tests/acceptance/browser-sales-checks.js"],
+      "live_evidence": ["2026-09-10: tools/verify_sales_aggregation.py matched all warehouse group keys, quantities and document counts against independent detail aggregation", "Running /v1/tasks: HTTP 200, live_success, complete warehouse table and business notes"]
+    },
+    {
+      "id": "T02",
+      "title": "截至某日 0 点",
+      "question": "统计 2026-09-01 至 2026-09-10 0 点前的每日有效销售出库数量和出库单数，按日期汇总。",
+      "source_section": "T02",
+      "status": "verified",
+      "static_evidence": ["app/tests/test_request_intent.py: exclusive midnight and natural-day planner boundaries", "app/agent_core/planning.py: dates parsed before whitespace removal"],
+      "fixture_evidence": ["app/tests/test_sales_aggregation.py: exact midnight exclusion and independent document count", "tests/acceptance/browser-sales-checks.js"],
+      "live_evidence": ["2026-09-10: tools/verify_sales_aggregation.py matched all daily group keys, quantities and document counts", "Running /v1/tasks after T01 in same conversation: HTTP 200, live_success, daily table, notes and ALL-owner scope"]
+    },
+    {
+      "id": "T03",
+      "title": "生产日期和入库日期双时间轴",
+      "question": "查询最近 7 个完整自然日生产日期的采购入库明细，但不包含今天完成入库的数据。返回仓库、入库单、SKU、生产日期、实收入库数量和实际入库时间。",
+      "source_section": "T03",
+      "status": "verified",
+      "static_evidence": ["2026-09-10 explicit user choice: purchase type 10 is the current default; purchase-order-reference and both remain separate variants", "app/agent_core/receipt_planning.py and inbound_details.py: independent production and arrival axes, owner-qualified detail keys, source units"],
+      "fixture_evidence": ["app/tests/test_inbound_details.py", "app/tests/test_inbound_detail_route.py", "app/tests/test_receipt_scope.py: explicit plan/compiler/reconciler scope", "app/tests/test_receipt_pagination.py: complete scans, changed-source detection, capacity and invalid later pages", "app/tests/test_result_pages_api.py: screened owner-bound pages and no model-self-approved completeness", "tests/acceptance/browser-receipt-checks.js and browser-pagination-checks.js: full grain, precision, refresh, page jump, boundaries and expiry on desktop/mobile/landscape"],
+      "live_evidence": ["2026-09-10: check_purchase_receipts_live.py complete two-scan retrieval matched independent counts, unique keys and per-unit totals", "Running chat API: check_receipt_chat_live.py retrieved every screened page, matched independent totals and dual dates, no redundant clarification, idempotent replay", "HJXH request followed by ALL-owner request in the same installation: independent scope/count/unit reconciliation passed"]
+    },
+    {
+      "id": "T04",
+      "title": "实际出库量与分配量对照",
+      "question": "查询昨天所有货主有效销售出库，分别给出实际出库数量、分配数量和两者差异，并按货主、2C/2B 汇总。找出差异最大的分组。",
+      "source_section": "T04",
+      "status": "not_verified",
+      "static_evidence": [
+        "2026-09-10 explicit user decision: allocate_qty versus ship_qty units remain unconfirmed; comparison remains unpublished",
+        "metrics/sales.outbound_actual.v2.yaml: no implicit EA label or difference; actual-only route no longer queries allocation as auxiliary reconciliation"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_contract_constraints.py and test_chat_api.py: explicit comparison stops before model/database, safe explanation and idempotent replay; this does not accept the numeric T04 case",
+        "tests/acceptance/browser-deferred-comparison-checks.js: safe reason, no pointless retry, question/reload retention, consistent inspector and no private diagnostics"
+      ],
+      "live_evidence": [
+        "2026-09-10 running chat API: unpublished comparison returned 409/blocked and idempotent replay; subsequent actual-only T07 query succeeded. Numeric T04 remains unverified."
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "状态 700、900、701、901 的边界",
+      "question": "查询昨天所有有效销售出库，按出库状态拆分数量和出库单数，并说明状态为 701 或 901 但数量为 0 的出库单是否应该保留。",
+      "source_section": "T05",
+      "status": "verified",
+      "static_evidence": ["metrics/sales.outbound_actual.v2.yaml: statuses 700/900/701/901; keep zero-quantity effective documents"],
+      "fixture_evidence": ["app/tests/test_sales_aggregation.py: 701/901 zero-quantity documents retained in counts", "tests/acceptance/browser-sales-checks.js: zero-quantity and count explanations survive refresh"],
+      "live_evidence": ["2026-09-10: tools/verify_sales_aggregation.py matched all status groups, quantities and document counts", "Running /v1/tasks: HTTP 200, live_success, status table, ALL-owner scope and zero-quantity notes"]
+    },
+    {
+      "id": "T06",
+      "title": "SO07 社团销售订单",
+      "question": "查询今天的社团销售订单，订单号必须是 SO07，返回销售订单号、订单创建时间、客户、仓库、SKU、请求数量和订单状态。不要把普通 JYCK 订单混进来。",
+      "source_section": "T06",
+      "status": "not_verified",
+      "static_evidence": ["Candidate SO07 compiler is independent of shipments; raw display, typed request-local routing, paired ALL-time semantics, one-shot choices and planner/executor publication gates are implemented; unit meaning and independent actual-source reconciliation remain outstanding"],
+      "fixture_evidence": ["Source/scope/decimal controls, bounded paging, reference integrity and separate source evidence regression passed 291 tests in the preceding follow-up; no live-route approval", "2026-09-11: public presentation regression passed 267 tests/four subtests; 27 frontend tests and synthetic desktop/mobile/dark browser checks passed", "2026-09-11: typed SO07 routing, ALL-time scope, strict dates, one-shot decisions, reviewed execution, raw public tables and owner-bound chat passed expanded 308 tests/51 subtests; after month-boundary choices, targeted 97 tests/18 subtests passed. No publication or actual-source acceptance"],
+      "live_evidence": ["2026-09-11: check_so07_sql_live.py passed 14 constant-fixture cases on Doris through the governed MCP bridge", "2026-09-11: check_so07_pages_live.py passed all twelve constant-fixture cases including high-precision paging, ALL-time historical orders, dated exclusion, exact SKU and old reference conflicts; no physical business-source reads or actual-source numerical reconciliation", "2026-09-11: check_so07_references_live.py passed 21 constant-fixture reference cases using equality-keyed diagnostic branches; this does not establish global source completeness", "2026-09-11: check_so07_evidence_live.py passed seven constant-fixture source evidence cases; modification time is not synchronization proof and unit-code mappings remain unconfirmed", "2026-09-11: information_schema confirmed request_qty/allocated_qty INT and unit-reference fields; physical unit mappings remain unconfirmed"],
+      "business_decisions": ["2026-09-11: display raw requested quantity together with source unit code; do not convert pieces/boxes or present cross-unit quantity totals. This confirms presentation only, not unit meaning or publication."],
+      "acceptance_boundary": "not_verified"
+    },
+    {
+      "id": "T07",
+      "title": "成品范围与例外 SKU",
+      "question": "查询昨天所有货主的成品销售出库，成品定义为 `master_sku.sku_group = '50'`，同时保留 SKU `5101010010008` 和 `5101010010009` 两个例外。按 SKU 汇总实际出库量。",
+      "source_section": "T07",
+      "status": "verified",
+      "static_evidence": [
+        "metrics/sales.finished_goods_exceptions.yaml: explicit group-50 OR approved exception set; no global default change",
+        "app/agent_core/finished_goods_planning.py: structural definition parsing and exact approved exceptions; SKU aggregation only"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_finished_goods_scope.py: duplicate membership, nonfinished/missing-master exceptions, conflicting group rejection, scope reset, quantity and non-additive document totals",
+        "tests/acceptance/browser-finished-goods-checks.js: full SKU codes, quantities and document columns, exception notes and refresh on desktop/mobile/landscape"
+      ],
+      "live_evidence": [
+        "2026-09-10 check_finished_goods_live.py: every group, quantity, document count and company control independently matched through approved MCP",
+        "check_finished_goods_chat_live.py: exact T07 prompt via running chat API independently reconciled; no clarification, same conversation, idempotent result and screened public columns"
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "箱规换算与舍入时机",
+      "question": "查询昨天 JYCK 成品出库，返回原始实发数量、箱规和实发箱数。箱数按汇总后的数量除以箱规，四舍五入且不保留小数。",
+      "source_section": "T08",
+      "status": "needs_business_confirmation",
+      "static_evidence": [
+        "2026-09-10 explicit user choice: customer-master Z004 online, Z001 offline, other/null/unmatched other; owner-qualified customer keys",
+        "metrics/sales.outbound_boxes.yaml: JYCK group-50 actual EA, date/owner/warehouse/SKU/customer-channel aggregation before exact unit-40 half-up rounding; missing or conflicting box specifications remain null",
+        "2026-09-10 reopened for business identity review: source master_store has customers with nonblank codes and missing owners. Current compound-key arithmetic reconciliation remains valid, but global-code versus owner/code dimension semantics require confirmation; see customer-name-identity-review.md"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_box_conversion.py and test_customer_channel_aggregation.py: exact rounding, raw precision, unit conflicts, duplicate and blank customer keys, cross-owner separation",
+        "app/tests/test_outbound_boxes.py: explicit routing and scope reset, independent reference SQL on synthetic facts, complete stable pages and capacity failures",
+        "app/tests/test_result_pages_api.py: every page screened, null conversions, notes retained, unsafe notes rejected, owner boundary and no model-self-approved completeness",
+        "tests/acceptance/browser-boxes-checks.js: 11 columns, nulls not zero, original precision, notes, reload and bounded scrolling on desktop/mobile/landscape"
+      ],
+      "live_evidence": [
+        "2026-09-10 check_outbound_boxes_live.py: all group keys, actual quantities, document counts, box specifications, rounding and conversion states independently matched through approved MCP",
+        "check_outbound_boxes_chat_live.py: running chat returned every screened page; all measures and company controls independently matched, no clarification, same conversation, idempotent replay and all public columns/notes passed"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "SKU名称和SKU编码冲突",
+      "question": "查询 SKU `QY-YWKC500G` 的出库数据。如果订单明细名称、出库明细名称和主数据名称不一致，应该显示哪个名称，并说明处理原则。",
+      "source_section": "T09",
+      "status": "verified",
+      "static_evidence": [
+        "metrics/sales.sku_name_quality.yaml: published technical name-display policy under project design delegation, exact-code identity, independent source observations, missing/conflicting names and code fallback",
+        "app/agent_core/sku_name_quality.py and handlers/name_quality.py: separately aggregated names over scoped actual facts, linked orders via EXISTS, two complete reads and screened 12-column table",
+        "app/agent_core/name_quality_planning.py: one outbound-basis choice; omitted dates mean ALL, unsupported predicates never silently removed"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_sku_name_quality.py: duplicate and conflicting names, missing sources, cross-owner documents, repeated shipments for one order, fact controls and unfiltered master-name diagnostics for selected fact keys",
+        "app/tests/test_sku_references.py: quoted/unquoted exact codes and lists, preserved case, no identifier-derived owner/warehouse/date/channel/order-type scope across sales, box and receipt planners",
+        "app/tests/test_name_quality_route.py and test_name_quality_chat_api.py: independent synthetic reference, ALL-time scope, relevant choices, no model fallback, idempotent selection/defer and cross-installation isolation",
+        "app/tests/test_sales_aggregation.py: unrelated SKU header conflicts do not block the requested fact scope",
+        "tests/acceptance/browser-names-checks.js: choice submission, reload, all 12 columns, null diagnostics and desktop/mobile/landscape bounded scrolling"
+      ],
+      "live_evidence": [
+        "2026-09-10 check_sku_scope_chat_live.py: shared exact-SKU scope independently reconciled for quoted and unquoted codes",
+        "2026-09-10 check_sku_names_live.py: all group keys, names, diagnostic counts, quantities and independent document controls matched through approved MCP; terminal exit 0",
+        "2026-09-10 check_sku_names_chat_live.py: exact T09 question and selection independently reconciled, ALL time, no repeated clarification, same conversation, 12 public columns and idempotent replay; terminal exit 0"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "线上线下渠道细分",
+      "question": "查询有效销售出库，按线上、线下和其他拆分，并继续拆分线上平台以及线下社区团购平台、社区团购分销和线下其他。要求各子项加总后能与总数量对上。",
+      "source_section": "T10",
+      "status": "not_verified",
+      "static_evidence": [
+        "metrics/sales.channel_breakdown.yaml: candidate disjoint channels, historical platform families, explicit overlap policy with no default, ALL-time scope and independent quantity/document controls",
+        "app/agent_core/channel_breakdown.py: scoped reviewed sales facts, normalized whole-tuple customer deduplication, nullable/unknown other categories, conflicts blocked and zero-quantity anomaly documents retained",
+        "docs/acceptance/channel-breakdown-decision.md: historical overlap identified before live quantities; precedence or separate overlap leaf awaits user decision; runtime/chat/UI integration remains outstanding"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_channel_breakdown.py: 54 tests covering all three overlap policies, nulls, unknown platforms, duplicate/conflicting customers, cross-owner keys, scope reset, zero quantities, exact arithmetic, corrupted controls and exclusion of unapproved contracts from executable routing",
+        "Independent synthetic Cartesian reference matches every group quantity and distinct document count across owner, type, representative platform and offline flags for all three policies"
+      ],
+      "live_evidence": [
+        "2026-09-10 approved MCP metadata only confirmed master_store string classification fields; no live business reconciliation or T10 acceptance claimed"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "社区团购替换口径冲突",
+      "question": "按“社区团购平台替换口径”统计销售量：出库表中的社区团购平台先排除，再从销售订单明细补回；日期使用订单创建时间减 1 天，数量使用 `request_qty`。请给出完整 SQL 和重复计数风险说明。",
+      "source_section": "T11",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T12",
+      "title": "地配快递合并例外",
+      "question": "统计客户名称。`price_group = '2011'` 的客户统一显示为“地配快递”，但以下客户编码必须保持原客户名称：185216、181898、181930、184856、180961、180962、180967、180965、183507、181897、180966、180462。请解释 CASE 条件顺序。",
+      "source_section": "T12",
+      "status": "not_verified",
+      "static_evidence": [
+        "metrics/customer.display_name.yaml: candidate opt-in 2011 display rule with all twelve exact exception codes; original names, identity, missing/conflicting attributes and freshness remain distinct",
+        "app/agent_core/customer_names.py: owner-qualified current-master lookup and explicit-key left join, complete bounded pages with two matching reads, independent label recomputation and source-record controls"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_customer_names.py: every exception, exact strings and leading zeros, duplicate names, cross-owner keys, missing customers, null/conflicting prices, blank identities, pagination, source changes and freshness controls",
+        "Independent live-reference implementation first verified against synthetic source observations; no expected live labels or result rows stored"
+      ],
+      "live_evidence": [
+        "2026-09-10 approved MCP metadata verified master_store.name and updated, distinct from order/shipment store_name",
+        "check_customer_names_live.py stopped at the prewritten customer_identity_invalid gate; not a successful business result",
+        "Read-only aggregate identity diagnosis found nonblank customer codes with missing owners; observed code uniqueness is not proof of a globally unique business key. Business identity confirmation and runtime/chat/UI acceptance remain outstanding"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "一个销售订单对应多张退货单",
+      "question": "查询一个销售订单的退货情况。一个销售订单可能关联多个退货单，请按销售订单加 SKU 汇总所有有效退货明细，并计算净销售数量和扣退后的实付金额。不能重复销售明细。",
+      "source_section": "T13",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T14",
+      "title": "退货状态和销售状态分离",
+      "question": "查询本月销售订单及退货金额。销售订单按销售指标合同筛选，退货明细只保留有效明细。请说明为什么不能用销售订单状态代替退货明细状态。",
+      "source_section": "T14",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T15",
+      "title": "可用数量同时扣销售和调拨占用",
+      "question": "查询所有仓库、所有货主、所有 SKU 的实时库存，返回在库数量、销售占用、调拨占用、锁定数量、冻结数量和可用数量。可用数量必须同时扣除销售占用和调拨占用。",
+      "source_section": "T15",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T16",
+      "title": "分配数量与业务中台占用的不同展示口径",
+      "question": "按库存明细返回以下字段：可用数量、分配数量、业务中台占用数量、汇总数量。要求分配数量只展示销售占用；可用数量减销售和调拨占用；业务中台占用包含销售和调拨占用；所有原来引用分配数量的计算列都要完整包含销售和调拨占用。",
+      "source_section": "T16",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T17",
+      "title": "占用单类型识别",
+      "question": "请根据 `scm_warehous_occupy` 判断哪些占用属于调拨、哪些属于销售。给出识别规则，并说明 `pre_order_code LIKE 'HJXH-TH%'` 与调拨占用的关系。",
+      "source_section": "T17",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T18",
+      "title": "负库存和可用量异常",
+      "question": "检查库存结果中可用数量大于在库数量、在库加移入为负数、占用为负数的记录，并区分哪些是源数据异常、哪些是 SQL 计算错误。",
+      "source_section": "T18",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T19",
+      "title": "采购在途与调拨在途拆分",
+      "question": "查询所有仓库的在途库存，按货主、仓库、SKU 返回采购在途、调拨在途和总在途，并说明两类在途的来源表和计算方式。",
+      "source_section": "T19",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T20",
+      "title": "待出库对可用库存的扣减",
+      "question": "查询云仓库存时，在原可用库存基础上扣除待出库调拨数量；同时保留实时库存、期间出库、期间退货、待出库和待入库字段。请说明待出库是按发出仓还是接收仓扣减。",
+      "source_section": "T20",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T21",
+      "title": "在途重复计数排查",
+      "question": "同一批调拨数据出现“在途翻倍”。请设计一条排查 SQL，分别比较调拨订单数、调拨出库单数、出库分配明细行数、按订单汇总数量和最终在途数量，定位是否为一对多关联造成的重复。",
+      "source_section": "T21",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T22",
+    "title": "仓库名称关键词匹配",
+      "question": "查询名称包含“沈阳”的所有仓库，返回仓库编码、仓库名称、仓库类型和仓库节点。特别确认榴莲熊沈阳京东代发仓不能漏掉。",
+      "source_section": "T22",
+      "status": "verified",
+      "static_evidence": ["app/tests/test_warehouse_lookup.py: master-data-only SQL, literal names, all-owner scope"],
+      "fixture_evidence": ["app/tests/test_warehouse_lookup.py", "tests/acceptance/browser-directory-checks.js: synthetic table and empty-state UI"],
+      "live_evidence": ["2026-09-16: running chat API returned live_success with 12 rows and no clarification; two independent MCP reads were stable, complete and contained 榴莲熊沈阳京东代发仓"]
+    },
+    {
+      "id": "T23",
+      "title": "所有仓库与云仓限制切换",
+      "question": "第一问：查询所有仓库库存。第二问：只查询云仓库存。两问连续发送，要求第二问不影响第一问，第一问也不能继承云仓条件。",
+      "source_section": "T23",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T24",
+      "title": "货主、仓库、SKU三元粒度",
+      "question": "查询同一个 SKU 在不同货主、不同仓库下的库存和出库，要求结果按货主、仓库、SKU 分行。请说明为什么不能只按仓库和 SKU 聚合。",
+      "source_section": "T24",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T25",
+      "title": "DMS积分兑换订单",
+      "question": "查询 DMS 2026 年 1 至 8 月积分兑换订单，按月份统计订单数，并返回客户名称、客户编码和订单号明细。要求排除逻辑删除数据，不要擅自增加 WMS 出库完成条件。",
+      "source_section": "T25",
+      "status": "verified",
+      "static_evidence": ["metrics/dms.points_orders.yaml: creation-month order-header contract, current-version resolution before business filters, no implicit payment/product/WMS condition", "app/agent_core/dms_order_planning.py: ALL when dates omitted, unknown qualifiers not discarded; compiler, reconciler and route-owned dual tables"],
+      "fixture_evidence": ["app/tests/test_dms_points_orders.py: duplicates, conflicting versions, deletion/date boundaries, missing identity/time/customer attributes, monthly/detail controls, bounded complete scans and independent reference", "app/tests/test_dms_orders_route.py: routing, all-scope reset, public dual tables, empty live report, unsafe later pages, owner isolation and idempotent replay", "tests/acceptance/browser-dms-orders-checks.js: separate tables, independent detail paging, refresh, nulls, exact codes, expiry, invalid second table and desktop/mobile/landscape"],
+      "live_evidence": ["2026-09-10 check_dms_points_orders_live.py: runtime orders, customer fields, normalized creation instants and monthly/total counts independently matched through approved MCP; exit 0", "2026-09-10 check_dms_orders_chat_live.py: running task API returned both screened tables; every public page, monthly summary, order/customer details and idempotent replay independently matched; no clarification; exit 0"]
+    },
+    {
+      "id": "T26",
+      "title": "DMS城市经理和客户关联",
+      "question": "查询 DMS 销售订单的日期、省区、城市经理、客户编码、客户名称和订单数。城市经理通过 `t_sales_order.owner_manager = t_employee.employee_id` 关联，展示 `t_employee.actual_name`；客户名称直接取 `t_sales_order.customer_name`。",
+      "source_section": "T26",
+      "status": "not_verified",
+      "static_evidence": [
+        "metrics/dms.city_manager.yaml and metrics/dms.manager_orders.yaml: candidate current-manager lookup and creation-date/native-province order aggregation; historical customer names remain order-header attributes",
+        "app/agent_core/dms_manager_orders.py: current-header resolution before filters, distinct orders, employee enrichment without dropped orders, separate full-group summary and bounded order-evidence modes; no inherited points/payment/WMS predicates",
+        "app/agent_core/dms_order_planning.py and handlers/dms_orders.py: candidate request-local T26 routing and grouped chat table, enabled only when both semantic dependencies are active and approved"
+      ],
+      "fixture_evidence": [
+        "app/tests/test_dms_manager_lookup.py and app/tests/test_dms_manager_reference.py: 70 identity, version, duplicate, conflict, missing-source and independent-reference cases",
+        "app/tests/test_dms_manager_orders.py and app/tests/test_dms_manager_groups.py: order and summary cases including 205 manager references, 600 orders under a two-row grouped budget, date/scope reset, corruption, missing-manager order counts, independent pre-join grouping and explicit larger-page validation with 2001 groups",
+        "app/tests/test_dms_manager_route.py: exact original T26 prompt, date/ALL reset, candidate dependencies, unknown clauses, nine-column ASGI table, missing attributes, full public paging, cross-owner denial and idempotent replay; not running-service evidence",
+        "2026-09-11 browser-dms-manager-{fixture,checks,isolation}.js: nine-column frontend contract, exact identifiers, nulls, unchanged report metadata across pages, unsafe-page rejection, expiry, refresh, background ownership, deleted-session isolation and empty results passed on desktop/mobile/landscape/dark synthetic APIs; related Python regression 68 tests and four subtests"
+      ],
+      "live_evidence": [
+        "2026-09-10 bounded employee-only MCP comparison passed all projected fields and stable before/after controls; this does not establish T26 order acceptance",
+        "2026-09-10 ALL-date independent raw-order evidence exceeded the existing complete-result row budget and stopped explicitly; no narrowed date scope or larger safety cap was used to claim full acceptance",
+        "2026-09-10 first grouped ALL-date reference stopped with query_timeout before completing the independent reference; not a successful business result",
+        "2026-09-10 explicitly scoped 2026-09-09 through 2026-09-10 grouped runtime/reference comparison passed all group keys, labels, order/missing/freshness controls and stable before/after checks; this does not accept ALL-date performance or chat/UI integration",
+        "2026-09-10 optimized ALL-date grouped reference still timed out after 98 completed MCP page calls and 177.94 call seconds, before runtime comparison; per-page MCP process startup was confirmed in code",
+        "2026-09-10 request-scoped MCP reuse passed 16 lifecycle/isolation tests and single-day independent reconciliation; ALL-date reference reached 166 calls and 173.92 call seconds but still timed out before runtime comparison. Full-scope paging work and T26 chat/UI acceptance remain",
+        "2026-09-10 bounded four-page batches completed the full-date independent reference in 270 calls and 114.85 batch-wait seconds. Runtime paging subsequently failed the ordinal/count consistency check; a separate runtime-only diagnostic rejected changed content after 268 calls. No full independent runtime reconciliation or T26 chat/UI acceptance is claimed; see docs/acceptance/bounded-mcp-pages.md",
+        "2026-09-10 explicit 2000-row grouped ALL-date verifier completed 68 calls in 20 waves and 37.63 batch-wait seconds, then failed with content_changed_between_passes in reference_order_groups before runtime comparison. No scope narrowing, safety-cap change or full acceptance; active release unchanged",
+        "2026-09-10 value-free diagnostic after relational pagination correction: reference failed after 68 calls and 54.60 batch-wait seconds; complete read key multisets and other returned fields matched, while latest_updated and missing_updated_count differed. Runtime comparison was not reached. Freshness fields were not ignored; see docs/acceptance/paging-relational-semantics.md"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "DMS省区匹配和省市回退",
+      "question": "DMS订单省区优先按省匹配组织架构；省匹配不到时再按城市匹配。请返回匹配来源字段，并找出省和城市都匹配不到的记录。",
+      "source_section": "T27",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T28",
+      "title": "销售订单金额防重复",
+      "question": "查询销售出库 SKU 明细并带订单金额。一个销售订单有多个 SKU 时，要求金额不在每个 SKU 行重复累计。请给出 SKU 明细金额和订单级金额的正确展示方式。",
+      "source_section": "T28",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T29",
+      "title": "销售订单数、出库单数和 SKU 行数",
+      "question": "同时统计某日销售订单数、出库单数、SKU 明细行数和 SKU 数量。请说明四个指标的去重字段，并给出一个不会互相放大的查询结构。",
+      "source_section": "T29",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T30",
+      "title": "来源单号、销售订单和出库单关系",
+      "question": "查询一张出库单的关联链路，返回出库单号、销售订单号、来源单号、订单来源编码和订单类型，并解释这些字段分别来自哪张表。",
+      "source_section": "T30",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T31",
+      "title": "同名指标存在两个历史版本",
+      "question": "“库存周转天数”有两个历史说法：A 用当前实时可用库存除以近 7 天平均销售出库；B 用月初库存和本月累计出库计算。现在只说“算本月周转”，请不要直接猜，列出需要确认的选项。",
+      "source_section": "T31",
+      "status": "verified",
+      "static_evidence": ["app/agent_core/turnover_conflict.py: six one-shot decisions for explicit competing historical proposals; no draft combination executes or publishes a metric"],
+      "fixture_evidence": ["app/tests/test_turnover_conflict.py: 18 tests including all 96 combinations, strict date validation, owner/request draft identity, and direct/queued API closure without model or database calls", "tests/acceptance/browser-turnover-conflict-checks.js: native conditional dates, inline validation, draft/terminal reload, mismatched-draft rejection, desktop/mobile/landscape/dark/reduced-motion; intercepted synthetic APIs only"],
+      "live_evidence": ["2026-09-11: check_turnover_conflict_live.py passed all 8 running-task API checks after hidden chat reload: six decisions, stable draft identity on token rotation, custom period, explicit unpublished/conflicting result, no repeated questions, same conversation and idempotency. T31 is clarification acceptance, not Doris numeric reconciliation or historical metric publication."]
+    },
+    {
+      "id": "T32",
+      "title": "“出库量”定义不明确",
+      "question": "业务只说“昨天出库量”，但未说明是销售出库、所有出库、实发数量、分配数量还是订单量。请列出需要确认的口径，并说明默认不能猜哪个字段。",
+      "source_section": "T32",
+      "status": "verified",
+      "static_evidence": ["app/agent_core/outbound_clarification.py: three one-shot decisions; only reviewed sales actual shipment-time combination executes; other combinations stop explicitly"],
+      "fixture_evidence": ["app/tests/test_outbound_clarification.py: all 75 combinations, missing/extra answers and scope-preservation negatives","app/tests/test_outbound_clarification_chat.py: no model fallback, no queries for unpublished choices, identity isolation and idempotency","app/tests/test_outbound_clarification_reference.py: independent aggregate established on synthetic facts","tests/acceptance/browser-outbound-clarification-checks.js: pending-card recovery, result persistence, no pointless retry, desktop/mobile/landscape","app/tests/test_clarification_time_binding.py: 18 synthetic planner/store/direct and queued API checks for original date binding, token refresh, storage reopen, ownership, invalid anchors and legacy schema migration"],
+      "live_evidence": ["2026-09-10: check_outbound_clarification_live.py passed exact T32 task/card/resume/selected execution; quantities and documents matched stable independent before/after MCP aggregates, same conversation and idempotent replay","2026-09-11: 1452 tests and 123 subtests passed. Chat worker reloaded hidden after idle checks; original-request time column installed. Live task/card/resume/selected query and idempotent replay passed with correct original-date caption and stable independent Doris quantity/document controls. Midnight correctness has synthetic boundary evidence; real midnight and unsubmitted drafts are not claimed complete."]
+    },
+    {
+      "id": "T33",
+      "title": "历史 SQL 与新业务要求冲突",
+      "question": "旧 SQL 的采购在途是采购计划数量，新需求要求扣除已实收数量；旧 SQL 的分配数量包含调拨，新需求又要求分配数量只展示销售占用。请对比两套口径，指出哪些字段可以改、哪些字段不能静默继承。",
+      "source_section": "T33",
+      "status": "not_verified",
+      "static_evidence": ["app/knowledge_changes.py and tools/assess_knowledge_changes.py: internal read-only selected-contract differences and dependency impact; no chat version-choice integration or publication approval"],
+      "fixture_evidence": ["142 related Python checks and 22 Node public-contract tests passed. Chat scalar proposal comparison/selection now covers draft/defer/final refresh, cancellation, deletion, clearing, 14 dynamic decisions, privacy, response-loss recovery and late callbacks in real-browser synthetic checks. Natural-language extraction and structured-definition descriptions remain open; see docs/acceptance/knowledge-change-assessment.md"],
+      "live_evidence": ["2026-09-11: check_proposal_review_api_live.py passed 23 non-query running-service checks, including scalar comparison, original-context binding, defer/current selection, replay, cancellation, stale baseline and actual frontend normalization of three response states; published knowledge unchanged. This remains foundation evidence, not full T33 acceptance."]
+    },
+    {
+      "id": "T34",
+      "title": "MySQL SQL 改写成 Doris",
+      "question": "把一条包含反引号、`IF`、`IFNULL`、`DATE_FORMAT`、`DATE_SUB`、动态参数和 MySQL 库表名的业务 SQL 改成 Doris 可运行的只读 SQL。保留字段别名和业务口径。",
+      "source_section": "T34",
+      "status": "not_verified",
+      "static_evidence": ["app/sql_translation.py, app/sql_conversion.py and tools/translate_mysql_sql.py: shared AST conversion with exact bindings, explicit table/column mapping and existing backend policy; activated contracts for stdin/chat intake; public guidance only, no SQL or execution"],
+      "fixture_evidence": ["app/tests/test_sql_translation.py and test_sql_translation_tool.py: 72 conversion, independent fixture reference, alias, join, CTE-scope, literal, partial-schema, manifest-loading, case-exact mapping, log privacy and rejection checks passed", "app/tests/test_sql_conversion_chat.py and browser-conversion-{fixture,checks,recovery}.js: direct/queued screened states, private input, exact decimal transport, ownership, idempotence, pending/completed refresh, file-read race and session isolation passed; full regression 1639 tests and 123 subtests"],
+      "live_evidence": ["2026-09-11: check_sql_translation_live.py passed seven fixed synthetic scalar/CTE Doris checks through query_doris_sql; no business tables read and no real business reconciliation claimed. Active-contract tool smoke passed without execution.", "2026-09-11: after idle-only hidden service reload, check_sql_conversion_chat_live.py passed all 19 intake checks for the exact prompt and synthetic materials. Distinct non-query states, screened output, no repeated questions, ownership and idempotence passed. Real business-migration reconciliation is still required; see docs/acceptance/sql-translation.md."]
+    },
+    {
+      "id": "T35",
+      "title": "SQL 被拒绝、执行失败和无数据",
+      "question": "Agent 查询返回异常时，请分别给出以下三种情况的回复模板：后端安全门禁拒绝、SQL 执行失败、SQL 成功但无业务数据。",
+      "source_section": "T35",
+      "status": "verified",
+      "static_evidence": ["app/query_outcomes.py: strict live-evidence envelope and safe outcome categories", "app/request_guidance.py: outcome explanation is a non-query response; mixed data questions do not enter the explanation route"],
+      "fixture_evidence": ["app/tests/test_query_outcomes.py", "app/tests/test_model_execution_states.py", "app/tests/test_chat_result_states.py", "app/tests/test_request_guidance.py: no model/health/DB call, CSRF, idempotence and persisted context", "tests/acceptance/browser-guidance-checks.js: desktop/mobile/landscape, reload, no fake query stages, unsafe text rejection"],
+      "live_evidence": ["2026-09-10 running /v1/tasks exact T35 question: HTTP 200, explanation, query_outcomes guidance, no business table or query steps; no Doris call is expected for an explanation"]
+    },
+    {
+      "id": "T36",
+      "title": "结果截断与大结果集",
+      "question": "查询近一年所有出库明细，后端返回结果达到行数上限。请说明如何处理，并给出按月、按仓库或按 SKU 拆分查询的方案。",
+      "source_section": "T36",
+      "status": "not_verified",
+      "static_evidence": ["app/query_outcomes.py: truncated results cannot pass complete-result validation"],
+      "fixture_evidence": ["app/tests/test_query_outcomes.py", "tests/acceptance/browser-directory-checks.js: truncation is visible without private diagnostics or unrelated choices; partitioning still outstanding"],
+      "live_evidence": []
+    },
+    {
+      "id": "T37",
+      "title": "月度销售、退货、库存和周转一体化",
+      "question": "统计本月所有货主、所有仓库、所有成品 SKU：每日销售出库数量、退货数量、净销售数量、当前可用库存、采购在途、调拨在途、近 7 天平均出库和库存可用天数。要求按仓库和 SKU 展示，同时提供全公司汇总。请先给口径清单，再给 SQL 结构。",
+      "source_section": "T37",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T38",
+      "title": "昨日 Top20 与明细回钻",
+      "question": "查询昨天成品销售出库数量 Top20，返回排名、SKU编码、SKU名称、实发数量、出库单数。用户点击其中一个 SKU 后，要能回钻到仓库、货主、客户、出库单号和出库时间明细。要求 Top20 汇总与明细回钻完全对账。",
+      "source_section": "T38",
+      "status": "not_verified",
+      "static_evidence": ["metrics/sales.ranked_drilldown.yaml: unpublished candidate; pins actual shipment 2.0.0; staged immutable ranking and checked per-SKU drilldown; reviewed runtime, owner-bound asynchronous API and screened browser integration implemented but not published"],
+      "fixture_evidence": ["app/tests/test_sales_drilldown.py: 62 synthetic compiler, reconciliation, paging, immutable snapshot, staged selection, capacity preflight, corruption and independent-reference checks", "app/tests/test_sales_drilldown_route.py and test_ranking_contexts.py: 38 synthetic runtime/cache/ASGI cases cover exact and short questions, original dates and rank, exact SKU case, gated publication, complete screened pages, unsafe late rows, CSRF, cross-owner access and same-SKU isolation, expiry and idempotent replay", "app/tests/test_execution_batches.py: compiler-owned scope retains backend/evidence gates and does not filter away conflicting master observations", "browser-sales-drilldown-fixture.js with checks/isolation/recovery: synthetic headless desktop/mobile/landscape clicking, exact decimals, screened paging, refresh, lost-response replay, source/SKU/total/receipt mismatch, expiry, corrupt history, keyboard focus, background session ownership and deletion; existing DMS multi-table checks also passed"],
+      "live_evidence": ["2026-09-10: eager ALL-owner/warehouse yesterday Top20 detail retrieval rejected as result_truncated after one query; no budget relaxed. Staged full-scope core verifier then completed 300 governed queries with exit zero: ranking, all-sales controls and every ranked SKU's complete detail keys, warehouse/customer codes, times, quantities and distinct documents independently matched. Display-name provenance, publication and UI/API acceptance remain outstanding; see docs/acceptance/sales-ranked-drilldown.md.","2026-09-11: full-scope independent name validation ended with exit one after 276 approved MCP queries. Ranking and eighteen complete SKU details matched including names; the nineteenth failed every_display_name while all numeric/key/time checks passed. The final SKU was not verified. Source-provenance diagnosis, publication and live API acceptance remain outstanding; no scope or comparison rule was relaxed."]
+    },
+    {
+      "id": "T39",
+      "title": "业务数据库与数仓结果不一致",
+      "question": "业务库查到某出库单，Doris 数仓查不到。请设计排查顺序，区分数据未同步、逻辑删除、状态过滤、连接键不一致、时间字段时区和事实表延迟。",
+      "source_section": "T39",
+      "status": "not_verified",
+      "static_evidence": [],
+      "fixture_evidence": [],
+      "live_evidence": []
+    },
+    {
+      "id": "T40",
+      "title": "综合口径变更回归",
+      "question": "现在将以下规则同时变更：1）所有仓库；2）只统计成品并保留两个例外 SKU；3）出库量使用 `ship_qty`；4）分配数量只展示销售占用；5）可用库存扣除销售和调拨占用；6）采购在途扣除实收；7）退货按销售订单加 SKU 汇总；8）社区团购平台采用订单替换口径。请列出受影响的 SQL 模块、字段和对账检查项。",
+      "source_section": "T40",
+      "status": "not_verified",
+      "static_evidence": ["app/knowledge_changes.py: transitive old/new declared-dependency impact and required quantity/document/inventory checks; undeclared implementations and arbitrary SQL are not inferred"],
+      "fixture_evidence": ["Knowledge change/proposal/context/API and frontend Python suites: 142 checks; 22 Node public-response tests and browser comparison/selection lifecycle checks pass. Full integrated T40 structured-change and implementation-dependency regression remains outstanding"],
+      "live_evidence": []
+    }
+  ]
+}

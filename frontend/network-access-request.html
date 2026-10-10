@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>申请内网访问</title>
+  <link rel="stylesheet" href="/static/network-access.css">
+</head>
+<body>
+  <main class="shell request-shell">
+    <section class="panel request-panel">
+      <p class="eyebrow">Doris Query Agent</p>
+      <h1>申请内网访问</h1>
+      <p class="subtitle">提交后，管理员会在服务机审批你的客户端 IP。</p>
+      <form id="request-form">
+        <label for="note">申请备注</label>
+        <textarea id="note" maxlength="240" required placeholder="例如：张三 / 数据测试 / 供应链组"></textarea>
+        <button class="button approve" type="submit">提交申请</button>
+      </form>
+      <p id="status" class="status" role="status"></p>
+    </section>
+  </main>
+  <script src="/static/network-access-request.js" defer></script>
+</body>
+</html>

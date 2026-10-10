@@ -1,0 +1,6 @@
+interface:
+  display_name: "Doris 业务取数流程"
+  short_description: "确认业务口径、来源与统计粒度，执行并核验 Doris 只读查询"
+  default_prompt: "使用 $doris-query-workflow 处理本轮取数，先确认口径，再执行查询并核验结果。"
+policy:
+  allow_implicit_invocation: true

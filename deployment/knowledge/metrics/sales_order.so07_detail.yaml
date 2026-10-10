@@ -1,0 +1,65 @@
+contract_schema_version: 1.0.0
+id: sales_order.so07_detail
+version: 1.0.0
+status: candidate
+business_concept: sales_order.request_quantity
+variant: so07_today_detail
+display_name: SO07社团销售订单明细
+aliases: [SO07订单, 社团销售订单, 社团销售订单明细]
+business_definition: Active SO07 sales-order detail lines whose order header was created within the requested Asia/Shanghai natural-day interval. The route is independent of shipment completion and reports request_qty.
+nearby_metrics_not_equivalent: [sales.shipment_quantity, sales.outbound_actual]
+applicability:
+  applicable_when: [The user explicitly requests SO07 social-commerce orders and their requested quantities.]
+  not_applicable_when: [The user requests actual shipped quantity, shipment documents, or a channel replacement metric.]
+clarification:
+  ambiguity_group: sales_order_quantity_basis
+  question: 需要查询SO07订单请求数量，还是实际销售出库数量？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + sales_order_code + detail.id; retain order, customer, warehouse, SKU and order status
+unit: Source order-detail unit is not yet verified; no EA conversion or cross-unit total is approved.
+time_window:
+  field: h.created
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+  today: Today is the business natural day, not the last 24 hours.
+formula: SUM(d.request_qty) for reconciliation only; each detail line displays its unrounded request quantity.
+sources:
+  required: [ywzt_ods.scm_sales_order_header, ywzt_ods.scm_sales_order_detail, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  order_type: {required: true, type: enum, examples: [SO07]}
+  output_grain: {required: true, type: enum, examples: [order_detail]}
+  probe_limit: {required: true, type: integer, examples: [501]}
+filters:
+  order_type: "h.order_type = 'SO07'; never use ref_order_type from a shipment header."
+  order_time: "h.created >= start_inclusive AND h.created < end_exclusive"
+  logical_delete: "h.deleted_flag = 0 AND h._fdl_marked_deleted = 'false'; detail _fdl_marked_deleted = 'false'"
+  detail_status: "d.status = '0' only filters active detail lines; h.status remains a display field."
+  no_shipment_dependency: Do not join scm_sales_shipment_header or require a shipment to retain an order.
+  joins: Join header and detail by company_code + sales_order_code; warehouse master by cargo_owner + warehouse_code.
+  scope_defaults: Omitted owner, warehouse and SKU scopes are ALL and are rebuilt for each request.
+  duplicate_control: Deduplicate identical qualified header attributes before detail join; conflicting header variants and duplicate detail IDs block output.
+  freshness: MAX(updated) is source change time, not guaranteed ingestion freshness.
+  reconciliation:
+    - Distinct order count is calculated on cargo_owner + sales_order_code, never detail rows.
+    - The sum of returned request_qty equals the independent total request control.
+    - Zero request quantities remain visible; missing quantities are not fabricated as zero.
+    - A successful empty result is no_data, not connection failure.
+    - An overflow probe is reported as truncated and cannot be called complete.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation]
+execution:
+  mode: sql_template
+  template: sql_templates/sales_order.so07_detail.sql
+template: sql_templates/sales_order.so07_detail.sql
+notes: Candidate only pending business approval. Customer is sourced from order-header store_name; warehouse is facility_code resolved through owner-qualified master_wms. No shipment join is intentional.
+updated_at: "2026-09-10"

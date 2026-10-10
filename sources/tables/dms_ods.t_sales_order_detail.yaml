@@ -1,0 +1,38 @@
+contract_schema_version: 1.0.0
+id: dms_ods.t_sales_order_detail
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: dms_order_detail_fact
+business_key: sales_order_code
+grain: one current DMS product line per order, item, and SKU after version resolution
+aggregate_key: [sales_order_code, item_code, sku_code]
+required_deduplication: true
+freshness:
+  field: updated_time
+  check: MAX(updated_time) must cover the requested paid_time end boundary or the result is marked incomplete
+  expected_lag: department-defined
+join_to:
+  table: dms_ods.t_sales_order
+  "on": TRIM(t_sales_order_detail.sales_order_code) = TRIM(t_sales_order.sales_order_code)
+  cardinality: many-to-one
+fields:
+  sales_order_code: {type: string, role: order_key, nullable: false, description: DMS order business key}
+  item_code: {type: string, role: item_key, nullable: true, description: DMS item business key used in line deduplication}
+  item_type: {type: string, role: line_type, nullable: true, description: Product line type; 2 is the points product line}
+  sku_code: {type: string, role: sku_key, nullable: false, description: Redeemed product SKU}
+  sku_name: {type: string, role: display_name, nullable: true, description: Redeemed product display name}
+  bag_quantity: {type: decimal, role: minimum_unit_quantity, nullable: true, description: Quantity in the minimum sales unit; source basis for redeemed units}
+  deleted_flag: {type: integer, role: logical_delete_flag, nullable: true, description: Numeric logical-delete flag}
+  _fdl_marked_deleted: {type: string, role: cdc_delete_flag, nullable: true, description: CDC logical-delete marker}
+  id: {type: integer, role: version_tiebreaker, nullable: false, description: Source row identifier}
+  version: {type: integer, role: version_number, nullable: true, description: Source version number}
+  created_time: {type: datetime, role: created_at, nullable: true, description: Source creation timestamp}
+  updated_time: {type: datetime, role: updated_at, nullable: true, description: Source update timestamp}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/dms_ods.t_sales_order_detail.yaml
+  semantic_changes_require_approval: true
+  # The business grain is composite; retain quality monitoring on the full
+  # aggregate key instead of treating sales_order_code as a unique row key.
+  key_quality: {enabled: true, lookback_days: 30}

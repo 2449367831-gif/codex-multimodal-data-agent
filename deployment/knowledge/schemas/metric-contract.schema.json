@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.data-agent/schemas/metric-contract.schema.json",
+  "title": "Doris metric contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_schema_version",
+    "id",
+    "version",
+    "status",
+    "business_concept",
+    "variant",
+    "display_name",
+    "aliases",
+    "business_definition",
+    "applicability",
+    "clarification",
+    "validity",
+    "approval",
+    "grain",
+    "unit",
+    "time_window",
+    "formula",
+    "sources",
+    "parameters",
+    "required_validations",
+    "execution",
+    "updated_at"
+  ],
+  "properties": {
+    "contract_schema_version": {"const": "1.0.0"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"},
+    "version": {"$ref": "#/$defs/semver"},
+    "status": {
+      "enum": ["draft", "candidate", "verified_template", "active", "deprecated", "retired"]
+    },
+    "business_concept": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"},
+    "variant": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "display_name": {"type": "string", "minLength": 2},
+    "aliases": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 2}
+    },
+    "business_definition": {"type": "string", "minLength": 10},
+    "nearby_metrics_not_equivalent": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicable_when", "not_applicable_when"],
+      "properties": {
+        "applicable_when": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 4}
+        },
+        "not_applicable_when": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 4}
+        },
+        "required_signals": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "negative_signals": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "clarification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ambiguity_group", "question"],
+      "properties": {
+        "ambiguity_group": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "question": {"type": "string", "minLength": 5}
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effective_from", "effective_to", "supersedes"],
+      "properties": {
+        "effective_from": {"type": ["string", "null"], "format": "date-time"},
+        "effective_to": {"type": ["string", "null"], "format": "date-time"},
+        "supersedes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.]*@[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"}
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["business_owner", "state", "validation_level", "approved_by", "approved_at"],
+      "properties": {
+        "business_owner": {"type": "string", "minLength": 1},
+        "state": {"enum": ["pending_business_approval", "approved", "rejected"]},
+        "validation_level": {"enum": ["contract_only", "static_contract_and_template", "live_reconciled"]},
+        "approved_by": {"type": ["string", "null"]},
+        "approved_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "grain": {"type": "string", "minLength": 3},
+    "unit": {"type": "string", "minLength": 1},
+    "time_window": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": true
+    },
+    "formula": {"type": "string", "minLength": 3},
+    "supporting_templates": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^sql_templates/[a-zA-Z0-9_./-]+\\.sql$"}},
+    "fact_table": {"type": "string", "minLength": 1},
+    "quantity_field": {"type": "string", "minLength": 1},
+    "time_field": {"type": "string", "minLength": 1},
+    "valid_status": {"type": "array", "uniqueItems": true, "items": {}},
+    "distinct_key": {"type": "string", "minLength": 1},
+    "required_joins": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "exclusions": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "reconciliation": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "depends_on": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}
+    },
+    "dependency_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "conditional": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/parameter"}
+    },
+    "filters": {"type": "object", "additionalProperties": true},
+    "required_validations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["sql_template", "composite"]},
+        "template": {"type": "string", "pattern": "^sql_templates/.+\\.sql$"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "sql_template"}}},
+          "then": {"required": ["template"]}
+        }
+      ]
+    },
+    "template": {"type": "string", "pattern": "^sql_templates/.+\\.sql$"},
+    "notes": {"type": "string"},
+    "updated_at": {"type": "string", "format": "date"}
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["required"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "default": {},
+        "type": {"enum": ["string", "integer", "number", "date", "datetime", "boolean", "enum"]},
+        "examples": {"type": "array"}
+      }
+    }
+  }
+}

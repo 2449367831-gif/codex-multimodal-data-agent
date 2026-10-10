@@ -1,0 +1,59 @@
+contract_schema_version: 1.0.0
+id: inventory.finished_goods_realtime
+version: 2.0.0
+status: active
+business_concept: inventory.finished_goods_quantity
+variant: realtime_available_plus_transit
+display_name: 当前实时可用成品库存 + 在途
+aliases: [当前实时成品库存, 实时成品库存, 当前成品库存]
+business_definition: Current real-time finished-goods inventory plus in-transit quantity, calculated from sku_inventory.available_quantity + in_transit_quantity and restricted to the deduplicated finished-goods SKU population where master_sku.sku_group is 50.
+nearby_metrics_not_equivalent: [inventory.available_realtime, inventory.snapshot_quantity, inventory.finished_goods_snapshot]
+applicability:
+  applicable_when:
+    - The user explicitly selects current or real-time finished-goods inventory.
+    - The requested quantity is the current available quantity plus in-transit quantity.
+  not_applicable_when:
+    - The user requests a historical snapshot or a different inventory basis.
+    - The finished-goods SKU population cannot be resolved from deduplicated SKU master data.
+  required_signals: [current_state, finished_goods, available_inventory, transit]
+  negative_signals: [historical_snapshot, unresolved_finished_goods_scope]
+clarification:
+  ambiguity_group: finished_goods_inventory_point
+  question: 请选择当前实时成品库存，还是指定区间末日的成品库存快照。
+validity:
+  effective_from: "2026-09-01T00:00:00+08:00"
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: "2026-09-01T00:00:00+08:00"
+grain: cargo owner + warehouse + finished-goods SKU, then aggregate to the requested output grain
+unit: EA
+time_window:
+  kind: current_state
+  freshness_field: ingestion_update_time
+  timezone: Asia/Shanghai
+formula: SUM(available_quantity + in_transit_quantity)
+sources:
+  required:
+    - ywzt_ods.sku_inventory
+    - ywzt_ods.master_sku
+parameters:
+  cargo_owner: {required: false, default: ALL, inventory_field: owner}
+  sku_scope: {required: false, default: ALL_WITHIN_FINISHED_GOODS, inventory_field: sku_code}
+  warehouse_scope: {required: false, default: ALL, inventory_field: wms_desc}
+  output_grain: {required: true, examples: [total, warehouse, sku, warehouse_sku]}
+filters:
+  inventory_record: "sku_inventory is the current source; no source status filter is assumed"
+  finished_goods: "Join one deduplicated master_sku key set and require TRIM(sku_group) = '50'."
+  scope_defaults: Omitted owner, warehouse, and narrower SKU scopes are ALL within the fixed finished-goods population.
+required_validations: [single_statement_and_read_only, source_freshness, metric_variant_resolved, metric_validation_isolation, inventory_key_aggregation, inventory_net_nonnegative]
+execution:
+  mode: sql_template
+  template: sql_templates/inventory.finished_goods_realtime.sql
+template: sql_templates/inventory.finished_goods_realtime.sql
+notes: This metric uses the confirmed available_quantity + in_transit_quantity basis. The source has no row-level snapshot date; information_schema.tables.update_time is ingestion freshness only.
+updated_at: "2026-09-01"

@@ -1,0 +1,69 @@
+contract_schema_version: 1.0.0
+id: purchase.so07_cloud_warehouse_inbound
+version: 1.0.0
+status: candidate
+business_concept: purchase.receipt_quantity
+variant: actual_received_cloud_warehouse_purchase_type
+display_name: 社团云仓采购入库
+aliases: [社团云仓入库, 社团云仓采购入库, 云仓实际收货, 云仓入库数量]
+business_definition: Actual received purchase receipt detail lines received into active cloud warehouses, identified by the approved historical rule warehous_type=10. This is a receipt metric, not SO07 order request quantity or actual outbound quantity.
+nearby_metrics_not_equivalent: [sales_order.so07_cloud_warehouse, sales.so07_cloud_warehouse_outbound, purchase.received_detail]
+applicability:
+  applicable_when:
+    - The user asks for receipt, purchase inbound, production-date inbound or received quantity in social-commerce cloud warehouses.
+  not_applicable_when:
+    - The user asks for transfer receipt, planned purchase quantity, SO07 order quantity or shipment quantity.
+  required_signals: [cloud_warehouse, purchase_inbound, received_quantity]
+  negative_signals: [transfer_receipt, order_request, actual_outbound, planned_purchase]
+clarification:
+  ambiguity_group: so07_cloud_inbound_basis
+  question: 采购入库是否按已确认的入库类型10统计，并按实际收货数量和源单位展示？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + receipt_code + receipt_detail_id; retain receiving cloud warehouse, SKU, production date, batch and source unit
+unit: Source detail.unit code; no implicit EA conversion
+time_window:
+  field: h.actual_arrival_date
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: SUM(d.received_quantity) by source unit after header type and cloud-warehouse filters
+fact_table: ywzt_ods.scm_warehous_detail
+quantity_field: received_quantity
+time_field: ywzt_ods.scm_warehous_header.actual_arrival_date
+required_joins: [ywzt_ods.scm_warehous_header.warehous_code, ywzt_ods.scm_warehous_detail.warehous_code, ywzt_ods.master_wms.wms_code]
+exclusions: [logical_deleted, transfer_receipt, non_cloud_receiving_warehouse, mixed_unit_conversion]
+reconciliation:
+  - Procurement basis is warehous_type='10' per the confirmed historical rule; do not replace it with nonblank po_order_code.
+  - Cloud warehouse is the receiving detail wms_code mapped to active master_wms wms_type='12' under the same cargo owner.
+  - Header is deduplicated before joining detail; duplicate physical detail IDs and conflicting header variants block output.
+  - Reconcile unrounded received_quantity totals separately by source unit; do not combine different units.
+  - Missing quantities, units, warehouse mappings and production dates are displayed as quality anomalies, not fabricated as zero.
+sources:
+  required: [ywzt_ods.scm_warehous_header, ywzt_ods.scm_warehous_detail, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  cargo_owner: {required: false, default: ALL, field: h.cargo_owner_id}
+  warehouse_scope: {required: false, default: ALL_CLOUD_WAREHOUSES, field: d.wms_code}
+  sku_scope: {required: false, default: ALL, field: d.sku_code}
+  output_grain: {required: true, type: enum, examples: [total, warehouse, sku, production_date]}
+filters:
+  purchase_type: "h.warehous_type = '10'; this is the approved current basis."
+  cloud_warehouse: "d.cargo_owner_id = m.cargo_owner_id AND TRIM(d.wms_code) = TRIM(m.wms_code) AND m.wms_type = '12' AND (m.status = '0' OR m.status IS NULL). Preserve wms_status for diagnostics; do not filter to one wms_status value without an approved rule."
+  logical_delete: "Exclude deleted header and detail rows using the declared source markers; do not infer deletion from receipt status."
+  source_unit: "Retain unit and aggregate only within the same unit code."
+  scope_defaults: "Omitted owner, warehouse and SKU scopes are ALL within cloud receiving warehouses and are rebuilt per request."
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation, master_data_freshness, warehouse_mapping_integrity]
+execution: {mode: composite}
+depends_on: [purchase.received_detail]
+dependency_versions: {purchase.received_detail: 1.0.1}
+notes: Candidate coverage rule. The contract deliberately keeps purchase-reference classification as a separate unselected variant because the confirmed rule is warehous_type=10.
+updated_at: "2026-09-23"

@@ -1,0 +1,67 @@
+contract_schema_version: 1.0.0
+id: sales.channel_breakdown
+version: 1.0.0
+status: candidate
+business_concept: sales.customer_channel_quantity
+variant: mutually_exclusive_customer_subchannels
+display_name: 有效销售出库渠道细分
+aliases: [线上线下渠道细分, 销售出库平台分类]
+business_definition: Partition actual shipped EA into customer-master online, offline and other categories, then mutually exclusive subcategories, preserving all quantities and independently deduplicated shipment documents.
+nearby_metrics_not_equivalent: [community_order_replacement, fulfillment_2c_2b, outbound_box_conversion]
+applicability:
+  applicable_when: [Effective actual sales outbound by customer-master channel and platform, with an explicitly approved overlap policy.]
+  not_applicable_when: [Order-request replacement, fulfillment classification, box conversion or unresolved community-platform versus distribution precedence.]
+clarification:
+  ambiguity_group: customer_channel_overlap
+  question: 同时属于社区团购平台和分销的客户，计入平台、计入分销，还是单列重叠？
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: customer_channel + channel_detail; raw facts preserve owner plus outbound plus SKU before independent aggregation
+unit: Actual shipped EA and distinct owner-qualified outbound documents
+time_window:
+  field: shipment_header.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+  omitted: ALL available shipment times; never inherit an earlier window or invent a recent interval.
+formula: SUM(ship_qty) by disjoint leaf channel; leaf quantities and distinct document counts reconcile independently to each parent and the full fact scope.
+sources:
+  required: [ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.master_store, ywzt_ods.master_sku, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: false, type: datetime}
+  end_exclusive: {required: false, type: datetime}
+  overlap_policy: {required: true, type: enum, examples: [platform, distribution, separate]}
+  cargo_owner: {required: false, default: ALL}
+  warehouse_scope: {required: false, default: ALL}
+  sku_scope: {required: false, default: ALL}
+filters:
+  actual_facts: Inherit sales.outbound_actual@2.0.0. No finished-goods, JYCK-only, cloud-warehouse or owner default. No order replacement and no allocation quantities.
+  customer_join: Trimmed shipment company_code plus store_code to master_store company_code plus code. Keys must be nonblank; left join preserves unmatched shipments.
+  source_status: No customer status filter is specified by this rule. Never invent one to remove conflicting or missing customers.
+  deduplication: Collapse identical normalized complete classification tuples. Multiple distinct tuples for a contributing customer block presentation, even if their current coarse channel label happens to agree. Never independently select MIN attributes as a valid classification after a conflict.
+  main_channel: "master_store.type Z004 is online, Z001 is offline; other/null/unmatched is other."
+  online_platforms:
+    抖音: [DY, WXSPHXD]
+    抖音小时达: [DYXD]
+    拼多多系: [PDD, PDDDF]
+    快手系: [KS, KSDF]
+    淘宝系: [TGC, MJYX, TB, CT, MAOCHAO]
+    京东系: [JDVMI, JD, JD_MARKET]
+    唯品会: [WPH]
+  online_other: Null, blank or unknown platform codes remain online other. Distinguish blank and unknown platform quantity and document impacts. Do not use a nullable NOT IN filter to discard them.
+  offline: "Platform means type Z001 and group1 03; distribution means type Z001 and price_group 122; all other offline customers remain offline other, including nullable group fields."
+  overlap: Required parameter platform gives platform precedence, distribution gives distribution precedence, separate creates a dedicated overlap leaf. No default and no silent historical precedence. Report overlap quantity and document impact for every variant.
+  nulls: Normalize whitespace and empty classification strings to null, without changing code case. Missing customer classification and zero quantities preserve documents and anomaly counts.
+  reconciliation: Leaf keys are unique, quantities are nonnegative, documents are positive integral counts, and parent plus full-scope controls agree. Because each shipment has one customer classification, leaf document counts must also partition the independent company count. Reject customer/header conflicts, missing quantities/keys, inconsistent controls and truncation.
+  precision: Reconcile original source decimals using exact rational sums, independently of Python decimal context; no rounding of quantities or difference tolerances to conceal mismatches.
+  freshness: Current customer master classification, not a historically effective snapshot. Latest matched ship_at is a business event, not an ingestion watermark. A future runtime must compare two complete reads before presentation; this is not an atomic snapshot.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [sales.outbound_actual]
+dependency_versions: {sales.outbound_actual: 2.0.0}
+notes: Candidate only. Historical source 07_商品平台出库统计.sql supplies platform-code families but independently sums overlapping offline categories and loses nullable other-platform rows. Precedence is awaiting the user's choice; no business result, published route or acceptance is claimed. Metadata-only MCP verification confirmed required string columns on 2026-09-10.
+updated_at: "2026-09-10"

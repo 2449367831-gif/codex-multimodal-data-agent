@@ -1,0 +1,20 @@
+contract_schema_version: 1.0.0
+id: information_schema.tables
+version: 1.0.0
+status: declared
+source_id: doris_information_schema
+role: source_freshness_metadata
+grain: one metadata row per catalog, schema and table
+aggregate_key: [table_catalog, table_schema, table_name]
+freshness:
+  field: update_time
+  check: Metadata timestamp used only as ingestion freshness evidence, never as a business event time
+fields:
+  table_catalog: {type: string, role: catalog}
+  table_schema: {type: string, role: schema}
+  table_name: {type: string, role: table}
+  update_time: {type: datetime, role: ingestion_freshness}
+join_to: []
+metadata_sync:
+  mode: compare_only
+  semantic_changes_require_approval: true

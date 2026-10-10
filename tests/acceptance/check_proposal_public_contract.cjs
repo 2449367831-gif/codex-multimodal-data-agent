@@ -1,0 +1,10 @@
+const {readFileSync} = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const sandbox = {};
+vm.createContext(sandbox);
+vm.runInContext(readFileSync(path.join(__dirname, '../../frontend/proposal-review.js'), 'utf8'), sandbox);
+const reports = JSON.parse(readFileSync(0, 'utf8'));
+const valid = Array.isArray(reports) && reports.length === 3 && reports.every(report => sandbox.RoyalProposalReview.normalize(report));
+process.stdout.write(JSON.stringify({public_contract_valid: Boolean(valid)}));
+process.exitCode = valid ? 0 : 1;

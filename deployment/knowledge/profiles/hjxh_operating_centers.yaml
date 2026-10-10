@@ -1,0 +1,103 @@
+id: hjxh_operating_centers
+version: 1.0.0
+status: active
+display_name: 皇家小虎八个经营中心
+owner: HJXH
+purpose: 固定中心仓与分仓周转图片的经营范围，避免模型按历史上下文扩大或缩小范围。
+scope:
+  centers:
+  - code: WMS000005
+    name: 皇家小虎成都-万纬仓
+    order: 1
+  - code: 9813421
+    name: 皇家小虎合肥万纬仓xs
+    order: 2
+  - code: 9660544
+    name: 皇家小虎济南-万维仓xs
+    order: 3
+  - code: TJWWC-777
+    name: 皇家小虎天津-万纬仓
+    order: 4
+  - code: WMS000019
+    name: 皇家小虎河北石家庄仓xs
+    order: 5
+  - code: 10114790
+    name: 皇家小虎长沙黄兴万纬仓xs
+    order: 6
+  - code: WMS000232
+    name: 皇家小虎沈阳-鲜生活仓xs
+    order: 7
+  - code: WMS000245
+    name: 皇家小虎郑州-万纬仓xs
+    order: 8
+  expected_center_count: 8
+  excluded_warehouse_codes:
+  - WMS000008
+  - WMS000148
+  allowed_wms_nodes:
+  - 10
+  - 12
+  - 13
+  - 14
+  allowed_wms_types:
+  - 10
+  - 11
+  - 14
+filters:
+  sku:
+    table: ywzt_ods.master_sku
+    predicate: TRIM(sku_group) = '50'
+    grain: distinct sku_code
+  warehouse:
+    table: ywzt_ods.master_wms
+    predicate: owner = 'HJXH', active logical and mapping status, non-contaminating
+      warehouse name
+    mapping_precedence:
+    - node10_self
+    - belonging_center
+    - senior_wms
+  inventory:
+    source_metric: inventory.current_components@1.0.0
+    default_formula: SUM(available_quantity + in_transit_quantity)
+    join_key: cargo_owner_id + wms_code + sku_code
+    negative_policy: Clamp available at the three-key grain exactly as the approved
+      SQL.
+  outbound:
+    source_metric: sales.business_quantity@1.0.0
+    window: Centers 7 days, subwarehouses 14 days for the approved image; other queries
+      use selected half-open window.
+    formula: Ordinary ship_qty plus community-platform request_qty at created minus
+      one day.
+    aggregation: Independent facts; contributing header/master code uniqueness required.
+freshness:
+  inventory: Catalog ingestion freshness for component sources; empty stock input
+    blocks publication.
+  catalog: information_schema.tables.update_time for master_sku and master_wms
+  outbound: Catalog ingestion of shipment and order header/detail plus store master.
+  max_lag: 72h
+reconciliation:
+  center_summary: sum of center warehouse and governed detail warehouse physical aggregates
+  detail_layer: each mapped warehouse independently aggregated by SKU first
+  controls:
+  - scope_row_count
+  - center_count
+  - detail_count
+  - inventory_total
+  - outbound_total
+  - inventory_row_count
+  - outbound_row_count
+  blocking_conditions:
+  - extra_or_missing_center
+  - mapping_conflict
+  - unresolved_mapping
+  - inventory_name_conflict
+  - control_total_mismatch
+  - stale_source
+clarification:
+  question_id: turnover_inventory_profile
+  options:
+  - id: actual_finished_goods
+    label: 可用成品库存 + 在途｜8个经营中心及当前有效分仓
+publication:
+  state: approved_for_actual_finished_goods
+  semantic_changes_require_release: true

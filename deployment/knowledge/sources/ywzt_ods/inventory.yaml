@@ -1,0 +1,41 @@
+group_id: ywzt_ods.inventory
+version: 1.0.0
+status: active
+purpose: 当前库存、占用和在途来源地图
+authority: metrics/inventory.current_components.yaml and metrics/inventory.available_realtime.v2.yaml
+tables:
+  current_components: sql_templates/inventory.current_components.sql
+  stock_detail: ywzt_ods.scm_warehous_manage
+  occupation: ywzt_ods.scm_warehous_occupy
+  warehouse: ywzt_ods.master_wms
+  sku: ywzt_ods.master_sku
+  purchase_header: ywzt_ods.scm_po_header
+  purchase_detail: ywzt_ods.scm_po_detail
+  transfer_header: ywzt_ods.scm_transfer_order_header
+  transfer_detail: ywzt_ods.scm_transfer_order_detail
+  transfer_allocation: ywzt_ods.scm_sales_shipment_allocate_wms
+  key_history: ywzt_ods.scm_stock_history
+dimensions: [cargo_owner, warehouse, sku]
+measures:
+  - in_stock_quantity
+  - sales_occupation
+  - transfer_occupation
+  - locked_quantity
+  - frozen_quantity
+  - purchase_in_transit
+  - transfer_in_transit
+  - available_quantity
+  - total_quantity
+rules:
+  - 2026-10-10 用户确认以库存组件SQL替代 sku_inventory 当前库存快照，历史快照规则单独保留
+  - 可用量按货主、仓库编码、SKU先汇总，再扣销售占用、调拨占用和锁定或冻结；最低为零
+  - 锁定合计非零扣锁定，否则扣冻结；采购在途按有效采购请求量，调拨在途按接收仓分配量
+  - 原始库存表为空不能当成全部库存为零；周转分母继续使用已发布 ship_qty 实际销售出库
+  - 库存和占用事实先分别聚合到货主、仓库、SKU再关联
+  - 调拨占用不得既计入锁定又重复扣减
+  - 在库、占用、锁定、冻结、可用和在途必须分别展示
+  - 仓库分类读取主数据，不能从中文名称猜测
+checks:
+  - 库存来源时间和主数据维护情况
+  - 关联前后数量不变
+  - 可用数量为负的仓库单独标识

@@ -1,0 +1,70 @@
+contract_schema_version: 1.0.0
+id: sales_order.so07_cloud_warehouse
+version: 1.0.0
+status: candidate
+business_concept: sales_order.request_quantity
+variant: so07_cloud_warehouse_detail
+display_name: SO07社团云仓订单明细
+aliases: [SO07云仓订单, 社团云仓订单, 社团云仓销售订单, 社团云仓订单明细]
+business_definition: Active SO07 social-commerce sales-order detail lines whose order header warehouse is an active cloud warehouse. The order route reports the original request quantity and source unit references; it does not require shipment completion and does not convert units.
+nearby_metrics_not_equivalent: [sales.so07_cloud_warehouse_outbound, inventory.so07_cloud_warehouse, purchase.so07_cloud_warehouse_inbound, sales_order.so07_detail]
+applicability:
+  applicable_when:
+    - The user asks for SO07 social-commerce orders in cloud warehouses.
+    - The user asks for order number, customer, warehouse, SKU, request quantity or order status for that scope.
+  not_applicable_when:
+    - The user asks for actual shipped quantity, current inventory, receipt quantity or transfer quantity.
+    - The request does not establish whether the quantity is requested or actually shipped.
+  required_signals: [so07_order, social_commerce, cloud_warehouse]
+  negative_signals: [actual_outbound, available_inventory, receipt_quantity, transfer_quantity]
+clarification:
+  ambiguity_group: so07_cloud_quantity_basis
+  question: 需要查询SO07云仓订单的原始请求数量，还是SO07云仓实际销售出库数量？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + sales_order_code + detail.id; retain warehouse, SKU, customer, order status, request quantity and source unit codes
+unit: Source request unit code; no EA/box conversion or cross-unit total is approved
+time_window:
+  field: h.created
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+  omitted: ALL order creation times; never inherit the prior question's date or warehouse
+formula: SUM(d.request_qty) for reconciliation within the same source unit only; raw detail quantities remain unconverted
+sources:
+  required: [ywzt_ods.scm_sales_order_header, ywzt_ods.scm_sales_order_detail, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: false, type: datetime}
+  end_exclusive: {required: false, type: datetime}
+  cargo_owner: {required: false, default: ALL, field: h.company_code}
+  sku_scope: {required: false, default: ALL, field: d.sku_code}
+  warehouse_scope: {required: false, default: ALL_CLOUD_WAREHOUSES, field: h.facility_code}
+  output_grain: {required: true, type: enum, examples: [order_detail, order, warehouse, sku]}
+filters:
+  order_type: "h.order_type = 'SO07'; never use ref_order_type as the SO07 identity."
+  cloud_warehouse: "Join h.company_code = m.cargo_owner_id and TRIM(h.facility_code) = TRIM(m.wms_code), then require m.wms_type = '12' and a logically valid mapping (m.status = '0' or NULL). Preserve wms_status as a diagnostic/display field; do not assume one universal wms_status value."
+  warehouse_mapping: "The cloud warehouse mapping must resolve to exactly one active master_wms row per owner and code. Missing or conflicting mappings block the result; warehouse names are display values only."
+  logical_delete: "Exclude logically deleted header and detail rows using the source deletion markers. Do not resurrect an older order version after a newer deleted version."
+  detail_status: "Retain active detail rows according to the declared source status rule; do not use shipment status as an order filter."
+  no_shipment_dependency: "Do not join shipment facts or require an outbound document for an SO07 order result."
+  unit: "Return request_qty, quantity_u_m and sales_unit together. Unknown unit codes and missing quantities remain explicit; no conversion or mixed-unit sum."
+  scope_defaults: "Omitted owner, warehouse and SKU scopes are ALL within cloud warehouses and are rebuilt for every request."
+  reconciliation:
+    - Distinct order count uses company_code + sales_order_code, never detail-row count.
+    - Every returned detail matches one qualified SO07 header and one cloud warehouse mapping.
+    - Header/detail joins must not change the pre-join detail count or request quantity by source unit.
+    - Conflicting header variants, duplicate detail IDs, missing keys or missing warehouse mappings block presentation.
+    - Empty qualified rows are a successful no-data result, not a connection failure.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation, sales_order_non_multiplication, master_data_freshness, warehouse_mapping_integrity]
+execution: {mode: composite}
+depends_on: [sales_order.so07_detail]
+dependency_versions: {sales_order.so07_detail: 1.0.0}
+notes: Candidate coverage rule. SO07 identifies the order type, while wms_type=12 identifies the cloud warehouse; neither condition may be inferred from the warehouse name. This contract does not claim that all cloud-warehouse orders are social-commerce orders.
+updated_at: "2026-09-23"

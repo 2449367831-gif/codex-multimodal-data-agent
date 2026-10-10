@@ -1,0 +1,141 @@
+manifest_schema_version: 1.0.0
+release_id: candidate-0.1.0
+knowledge_version: 0.1.0-candidate.4
+status: candidate
+created_at: '2026-08-28T00:00:00+08:00'
+released_at: null
+contracts:
+  metrics:
+  - sales_order.components@1.0.0
+  - sales_order.net_returns@1.0.0
+  - sales_order.return_components@1.0.0
+  - inventory.components@1.0.0
+  - dms.manager_orders@1.0.0
+  - dms.city_manager@1.0.0
+  - dms.points_orders@1.0.0
+  - customer.display_name@1.0.0
+  - sales.channel_breakdown@1.0.0
+  - sales.sku_name_quality@1.0.0
+  - sales.outbound_boxes@1.0.0
+  - sales.finished_goods_exceptions@1.0.0
+  - purchase.received_detail@1.0.1
+  - sales.outbound_actual@2.0.0
+  - inventory.available_realtime@1.0.0
+  - inventory.snapshot_quantity@1.0.0
+  - inventory.finished_goods_realtime@2.0.0
+  - inventory.finished_goods_snapshot@1.0.0
+  - inventory.turnover_finished_goods_realtime@1.0.0
+  - inventory.turnover_finished_goods_snapshot@1.0.0
+  - inventory.turnover_7d_realtime@2.0.0
+  - dms.points_redemption@1.0.0
+  sources:
+  - ywzt_ods.scm_return_order_header@1.0.0
+  - ywzt_ods.scm_return_order_detail@1.0.0
+  - dms_ods.t_employee@1.0.0
+  - ywzt_ods.scm_sales_order_detail@1.0.0
+  - ywzt_ods.master_sku_unit@1.0.0
+  - ywzt_ods.master_store@1.0.0
+  - ywzt_ods.scm_warehous_header@1.0.0
+  - ywzt_ods.scm_warehous_detail@1.0.0
+  - ywzt_ods.scm_sales_shipment_header@1.0.0
+  - ywzt_ods.scm_sales_shipment_detail@1.0.0
+  - ywzt_ods.scm_sales_order_header@1.0.0
+  - ywzt_ods.scm_warehous_manage@1.0.0
+  - ywzt_ods.scm_warehous_occupy@1.0.0
+  - ywzt_ods.scm_warehous_manage_backups@1.0.0
+  - ywzt_ods.master_sku@1.0.0
+  - ywzt_ods.master_wms@1.1.0
+  - ywzt_ods.sku_inventory@1.0.0
+  - dms_ods.t_sales_order@1.0.0
+  - dms_ods.t_sales_order_detail@1.0.0
+golden_suites:
+- core.metric_routing@1.2.0
+- dms.metric_routing@1.0.0
+required_gates:
+- json_schema_validation
+- cross_reference_validation
+- sql_static_read_only_validation
+- golden_question_schema_validation
+- golden_question_runtime_regression
+- protected_path_impact_review
+- business_approval_for_semantic_changes
+approval:
+  state: pending
+  approved_by: null
+  approved_at: null
+rollback:
+  previous_release_id: null
+integrity:
+  algorithm: sha256
+  files:
+    app/routing_aliases.yaml: 54a58a8ff72be1fa715482438cb00b824e0894765f682f847448adeb773ae0d9
+    app/template_capabilities.yaml: 371a8e1bc10c8b885e72bb1632eec55fe3569b4c7245aab12df49bf713f19319
+    evals/edge_cases.yaml: b0fe12993f8791d08d6ad4eb7d9ebf290cd98833389df7f28e6807d882ff4a0c
+    evals/known_answers.yaml: 3d97254b3555c66da81162720b676c6a08f5f7ca1d92fa3409091c5d977302c2
+    metrics/customer.display_name.yaml: 7374cb7453671455d56da80208565bef7b3409efa8bbd0e4fa41c54bb984ca6e
+    metrics/dms.city_manager.yaml: c809c8723d3ba432d80a3439eb9a6f549de1863999de626210e2e67e5d590800
+    metrics/dms.manager_orders.yaml: 990c612942ffcb9d5a4cf31848126e0878315cd7880c4daff442402bcdfe4a07
+    metrics/dms.points_orders.yaml: 955fa90dfdf4104a1e8ea5bd923af865c01a10b8020d0958d23cfb7cc3a39ce9
+    metrics/dms.points_redemption.yaml: 37883d769ea8cc804595bbaf5b1023dd01dcb976394882dfdff0604d45d087f2
+    metrics/inventory.available_realtime.yaml: 2e9b1326fc0f1c71fd52420343c1f34a9e72d7f614ec11b201743284c6d6f210
+    metrics/inventory.components.yaml: 85e06bef99267b27dbd3905d8e13ab8d77c0279760839a261beae6b587fe016a
+    metrics/inventory.finished_goods_realtime.yaml: d28f81d84d22a11e97cbb6be770ff8491b81210624dae312424db7b986c8e1ef
+    metrics/inventory.finished_goods_snapshot.yaml: a21d6fbfb5c727c0d2f7a6b984dfc4c3b522fdaa036e0705cc46e6f3cbf5af43
+    metrics/inventory.snapshot_quantity.yaml: 04c2092e384fb09ce34bda99802c1a1d8bcd32664842b0c8cdb414f417629a81
+    metrics/inventory.turnover_7d_realtime.v2.yaml: c7fe78082313e7a76c37d6a81db934479d348217a32442ee3663aa64ac260fa1
+    metrics/inventory.turnover_finished_goods_realtime.yaml: d8888a8cc66e555ace1239ee81f0f0b15d4ee2b315322f5b4b9e49015937950a
+    metrics/inventory.turnover_finished_goods_snapshot.yaml: efb957ae2bce3ce4a578519830782d0161109c713d605a991cfb5decc5244385
+    metrics/purchase.received_detail.yaml: b3d2662460dfdaf06c8ebc7d57d3317e48bab7df7eeba6c1ba04efc9736a6e80
+    metrics/sales.channel_breakdown.yaml: e6dd82b1fa76535fa7def9779ab74d8e4f6294e2c528dd4c815bef91bbb356d8
+    metrics/sales.finished_goods_exceptions.yaml: 1073155ae94f85fd88cbe0463e17b4b1ee4accc5b550b0bbd0d17573158a094c
+    metrics/sales.outbound_actual.v2.yaml: 52cf91377ecf84bd55e2a4680a974332490aa228d858057733e6d4f5000caa06
+    metrics/sales.outbound_boxes.yaml: 6038166e9aaa2d4d0cf7625f55722c0cecfef2c14f0d17671d6025cb5dd59eeb
+    metrics/sales.sku_name_quality.yaml: e1a09325a96f9bf2a1be20177a6697dc1d46391e9aaae916bec8068aadb8c42f
+    metrics/sales_order.components.yaml: 65906f67c39a5618a854415d6f0cea53cb5fe83e5f6e46195f2e6167e6a2fca7
+    metrics/sales_order.net_returns.yaml: 05565e35846713f1e6df321a980482348b752490d84b4b4e008e7ddc7c4a3398
+    metrics/sales_order.return_components.yaml: 9065eab84e9e8c0cd90efbcfb76efee0fc7e156215a5ffa39dcadbe94abfd02c
+    profiles/hjxh_business_reference_centers.yaml: 9692b7d69a9c2d1aff784450c6e4009a228be24f9681bc27201b41a5a4819dd5
+    profiles/hjxh_operating_centers.yaml: 24e0e2ac69d9618e6572cdcbb10f63e21a137b3b2307294533ef10477efb45a4
+    profiles/hjxh_turnover_template_v3.yaml: d996b3cfce69dacf773b7d427180fc418a5a24b2e5319658650a8286706f2d79
+    rules/agent-operating-contract.yaml: 7de131042ccd6c789b2d09605b4ecde15f0814b8301fad060b0bc4590dd588ae
+    rules/agent-policy.yaml: 5c2988a0a8e35cd951b35cb5be4898f9417811156624159dd6387885804a476c
+    rules/failure-guards.yaml: 49fdc152faa8fb90246e135f5695d185c13b56ce6695e6a69ad38437bd63fab9
+    rules/feedback-policy.yaml: d657708f63b0093502bcb573a790ac742a33a14c63aa4eb80d9687bcca0cdd6c
+    rules/knowledge-lifecycle.yaml: e08feabf89534858af4f95f55a9b10771c1d2a59432b6acdc7c80ffba3567e78
+    rules/query-scope.yaml: cef363c71addc428006862be319e34e53ab30c1d2bb104158e717e3d786cf716
+    rules/release-policy.yaml: f11a16f1fde51465f0477224f617a8c218405bd32387a2f22dbd496b144d3e2e
+    rules/thread-derived-semantics.yaml: 55a9a05c65767a99a3e4aff41f093d44b15f1ae7292e6d792448c7992eed26ac
+    rules/validations.yaml: 6214d59c7e38de8dff310794f740805aa4b58888b34f6c4faeab8db983054ddf
+    sources/dms_ods/sales_order.yaml: e49833648d4421907898b275e152619a6cdf3c5e2318c36fa11c596621739f94
+    sources/doris.yaml: 06bf5a62ef512abe3eadb2912f1e38b5d9fa58f5a58978a668edad4e91b8d985
+    sources/tables/dms_ods.t_employee.yaml: 88f94922796139d89c36b833f68a63a6c5e9c258a921d63f62d5b6644cbd3095
+    sources/tables/dms_ods.t_sales_order.yaml: 2ef8b998f98ee358ff579b7127a1511c22c5420367553bca46ffbe607b5a327e
+    sources/tables/dms_ods.t_sales_order_detail.yaml: 3191af2e2c28ac6226c690b54c7957ecd101ca035d2129b759d1d6e2063d8c7d
+    sources/tables/master_sku.yaml: fa1e5f425cb87737696bf29162a3d41e8a6f1ad8dbafa160f15756c0ea66e7bd
+    sources/tables/master_sku_unit.yaml: 3c0662eb80cc7b0d7addde1d192a1c1cda0b11f40f27f50ddcb175b1711a8e04
+    sources/tables/master_store.yaml: bcbd2a84ffb5defd112137d723c713fc4cca327bc6bcb85e10ba21a99de30020
+    sources/tables/master_wms.yaml: 59d5a12c2fec30629d09e148e0cc00bea8250f7e142a57293266afef1dbff61e
+    sources/tables/scm_return_order_detail.yaml: 2ec8f23e8d86c163362b62073b31fd89e584acebab4dc4cf2b2e14f4084bff19
+    sources/tables/scm_return_order_header.yaml: ee2fca939fd15ca02b87c4833895f6eca7794f7ae7f2e56f1676ed885ea52b63
+    sources/tables/scm_sales_order_detail.yaml: b1579e07500163dcfe2110d01c7c0e463c49d84c811aab70ee6d5096ce659578
+    sources/tables/scm_sales_order_header.yaml: 001ccbaec613cb5611472de0b764447acfc1b928c87a2efd23d367eb1536145e
+    sources/tables/scm_sales_shipment_detail.yaml: 2a4e57675d5183c52205b058aa87f094fdc881eece18cd5e16841acdb0f0fffe
+    sources/tables/scm_sales_shipment_header.yaml: 99ff7b6decd56b5efd11168599f2fabf24d3bc1bc3efc5ad6854b171619fb911
+    sources/tables/scm_warehous_detail.yaml: 9d57dcc01ce4990029d77d871c9a8bb152007d63cac9304f8d5011f12d663f9b
+    sources/tables/scm_warehous_header.yaml: 02c21e87d26978bcc8456aaada2547681ab292c6a4316721fb02687ec355a304
+    sources/tables/scm_warehous_manage.yaml: 3da947abbed74dcdc5264a8612290e62f460f128c32b274691bf301cd2373af2
+    sources/tables/scm_warehous_manage_backups.yaml: af49454ac387cfe5a494b3d7f73c7a320b0522c8d6ffae213a029822893a3df4
+    sources/tables/scm_warehous_occupy.yaml: 90899830a349684cd53175ced007fa68013fd7cc3b546efe80a6028d8cc6aa84
+    sources/tables/sku_inventory.yaml: d1390d8de7172754544c7b26fedbcf35c713294b73ed9e728ed82e476956283f
+    sources/ywzt_ods/inventory.yaml: 9e7ec24a1b63f168d27418700f50e3939e69cd06859d10c3aab29759b28404c2
+    sources/ywzt_ods/shipment.yaml: e317ca7ab54327f2f23b628e91ca8a30d65a18d4f910538c8f49b0dd772da1f8
+    sources/ywzt_ods/transfer.yaml: bd003e8155e1ffaa85b808ee9fe0233c0051b95345c82ef432322b9c52eb0644
+    sql_templates/dms.points_redemption.sql: e791845d1198d2129509321ef23aeb8ebf183800bf58c7808376c42a2c448052
+    sql_templates/inventory.available_realtime.sql: 3d2ed5fdbd81900cc927c6b1009026815165c09a02142cc358e7c5edbfa65a57
+    sql_templates/inventory.finished_goods_realtime.sql: 72925840378f072387b4f55f321627fbfdb96d8dbfd55dee19a90c47c6afd9b9
+    sql_templates/inventory.finished_goods_snapshot.sql: b577dc202162436a9feb7d30b3dd6cb0687f44bf2ade5429c123666e8fd4a2e8
+    sql_templates/inventory.snapshot_quantity.sql: c80e4feb6a043d4950dd3b632060ae1512714f7a2ad9fb4a6051b56073a498b0
+    sql_templates/purchase.received_detail.sql: 2ca4380b4570bb11dc3d9e1b77133b12bdbd8348becc12ce4a1d138983563d25
+    sql_templates/sales.outbound_actual.v2.sql: b32fdbfc8d69e4d4302b3907213abc55e70ca171fdeb431fc6f362f0acefa3fa
+    tests/golden_questions/core-routing.yaml: ff21c1e97b092ac0fa7cb916524c5399e32d0a2fa539428377aaf60b13faa6c5
+    tests/golden_questions/dms-routing.yaml: 61b05eb39cb800efb37f5d3af8cffbc52330144996ce5cb1b79a3cabf45dade9

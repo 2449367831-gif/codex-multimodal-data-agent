@@ -1,0 +1,7 @@
+# Configure real GitHub users or teams before enabling branch protection.
+# No owner handles are invented in this repository.
+# Required review paths are documented in docs/PRODUCTION_RELEASE.md:
+# metrics/ sources/ sql_templates/ profiles/ rules/ releases/
+# AGENTS.md .codex/ app/codex_agent.py app/mcp_server.py app/service.py
+# app/sql.py app/release_integrity.py pyproject.toml uv.lock
+# .github/workflows/ tools/verify_wheel.py

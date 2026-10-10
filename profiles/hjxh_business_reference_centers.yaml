@@ -1,0 +1,25 @@
+id: hjxh_business_reference_centers
+version: 1.0.0
+status: candidate
+display_name: W37业务表九个经营中心候选范围
+owner: HJXH
+purpose: Reproduce the supplied W37 workbook only; this is not the active operating-center profile.
+scope:
+  centers:
+    - {name: 皇家小虎成都-万纬仓, order: 1}
+    - {name: 皇家小虎合肥万纬仓xs, order: 2}
+    - {name: 皇家小虎济南-万维仓xs, order: 3}
+    - {name: 皇家小虎广州顺德万纬仓xs, order: 4}
+    - {name: 皇家小虎天津-万纬仓, order: 5}
+    - {name: 皇家小虎河北石家庄仓xs, order: 6}
+    - {name: 皇家小虎长沙黄兴万纬仓xs, order: 7}
+    - {name: 皇家小虎沈阳-鲜生活仓xs, order: 8}
+    - {name: 皇家小虎郑州-万纬仓xs, order: 9}
+  expected_center_count: 9
+mapping:
+  source: workbook_sheet_基础信息表
+  precedence: [explicit_business_mapping]
+  do_not_fallback_to: master_wms_belonging_center
+publication:
+  state: pending
+  requires: [source_sql_confirmation, formula_confirmation, nine_center_mapping_confirmation, reconciliation_pass]

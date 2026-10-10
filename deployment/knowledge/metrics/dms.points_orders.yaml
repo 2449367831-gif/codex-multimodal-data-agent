@@ -1,0 +1,57 @@
+contract_schema_version: 1.0.0
+id: dms.points_orders
+version: 1.0.0
+status: active
+business_concept: dms.points_order_count
+variant: created_month_all_points_orders
+display_name: DMS积分订单数及订单明细
+aliases: [DMS积分订单数, DMS积分兑换订单明细]
+business_definition: Count distinct current DMS sales order codes with is_points_order equal to one and no logical deletion, by order creation month. Retain order-header customer code and name and reconcile every order detail to its month and full-window count.
+nearby_metrics_not_equivalent: [dms.points_redemption, sales.outbound_actual, dms_paid_order_count, dms_product_line_count]
+applicability:
+  applicable_when: [The request explicitly asks for DMS points orders by creation time, with monthly order counts or header-level customer and order details.]
+  not_applicable_when: [Paid-product quantities, shipment completion, requested quantities, SKU lines, customer-master renaming or unreviewed owner/warehouse mappings.]
+clarification:
+  ambiguity_group: dms_points_measure
+  question: 统计积分订单数，还是已付款商品兑换数量？
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: live_reconciled
+  approved_by: current_project_requester
+  approved_at: "2026-09-10T00:00:00+08:00"
+grain: One normalized sales_order_code for details; creation month for monthly counts. Monthly counts are never repeated as additive order-row values.
+unit: 单
+time_window:
+  field: o.created_time
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+  omitted: ALL creation dates; never infer a month or prior-question date.
+formula: COUNT(DISTINCT normalized sales_order_code) after latest-version resolution and the explicit points/deletion/creation-time predicates.
+sources:
+  required: [dms_ods.t_sales_order]
+parameters:
+  start_inclusive: {required: false, type: datetime}
+  end_exclusive: {required: false, type: datetime}
+  customer_codes: {required: false, type: string, default: ALL}
+  order_codes: {required: false, type: string, default: ALL}
+filters:
+  points: is_points_order = 1
+  logical_delete: COALESCE(deleted_flag, 0) = 0 and normalized CDC delete marker is null, empty, false or zero. True and one are deleted; other markers are invalid and must be diagnosed.
+  forbidden_inheritance: No paid_status, paid_time, order_type SO16, order lifecycle, after-sales status, WMS completed status, product alias or detail item_type restriction is implicit.
+  current_version: Rank all versions by updated_time DESC NULLS LAST, version DESC NULLS LAST, id DESC. Only then apply points, logical deletion, creation time and explicit customer/order scopes. Older eligible versions never resurrect a current deleted or nonpoints order.
+  version_ties: Collapse exact duplicates of the selected header attributes; more than one distinct top-ranked attribute tuple for a contributing order blocks output, including conflicting deletion or points flags. Do not break ties with an arbitrary customer name.
+  identity: TRIM(sales_order_code) is the source-declared business identity. Customer codes remain strings, preserving case and leading zeros. No customer-master or warehouse join is needed.
+  missing_identity: Active points records lacking order codes are diagnosed in the requested date/customer scope; they cannot be counted as one shared blank order.
+  missing_creation: Current active points orders lacking creation time cannot be assigned to a date window and block a complete result, except when an explicit order/customer scope excludes them.
+  missing_customer: Retain null customer code/name with explicit anomaly counts. Never drop an order or invent customer labels.
+  freshness: Report the maximum modification timestamp and missing modification timestamps among included current orders. This is not an ingestion watermark and does not prove that a historical month is completely synchronized. Two equal full reads detect observed content changes, not an atomic snapshot.
+  reconciliation: Each order appears once; independently recount details per creation month and compare every monthly count plus the total. Keep the control record for empty scopes and validate quality controls before treating them as no data.
+  pagination: Existing bounded reads, two complete matching passes, at most 500 query rows per page, 100000 complete report rows, 64 MiB and 180 seconds. Capacity or instability is explicit, not partial success.
+required_validations: [single_statement_and_read_only, metric_variant_resolved, source_freshness, business_date_semantics, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: T25 explicitly requires creation-month points orders, without an implicit paid or shipment condition. This opt-in contract does not change the older paid-product quantity variant. Independent runtime reconciliation and synthetic public presentation passed; running-chat acceptance is tracked separately in the acceptance register. Only months with matching orders are listed.
+updated_at: "2026-09-10"

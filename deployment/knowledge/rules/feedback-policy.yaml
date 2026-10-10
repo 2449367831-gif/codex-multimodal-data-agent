@@ -1,0 +1,54 @@
+schema_version: 1.0.0
+storage_schema: schemas/feedback-event.schema.json
+capture:
+  required_context:
+    - query_audit_id
+    - knowledge_release_id
+    - selected_metric_id_and_version
+    - normalized_parameters
+    - source_freshness
+    - validation_results
+  redact: [credentials, connection_strings, personal_sensitive_values]
+
+query_learning:
+  event_schema: schemas/query-learning-event.schema.json
+  storage: principal_scoped_private_sqlite
+  automatic_capture: [completed_query, failed_query, blocked_query, clarification_required]
+  public_surface: aggregate_counts_and_route_labels_only
+  store: [bounded_sanitized_question, normalized_question_hash, route_family, lifecycle_state]
+  never_store: [sql_text, result_rows, credentials, model_transcript, audit_payload]
+  duplicate_policy: request_id_idempotent
+  promotion: candidate_only_business_owner_review_required
+
+event_actions:
+  accepted_answer:
+    automatic: [increment_release_metric_success_counter]
+    candidate_only: [add_paraphrase_to_golden_suite]
+  route_correction:
+    automatic: [record_confusion_pair]
+    candidate_only: [alias_change, applicability_change, golden_case]
+  parameter_correction:
+    automatic: [record_parameter_error]
+    candidate_only: [parameter_extraction_rule, golden_case]
+  metric_definition_dispute:
+    automatic: [block_auto_promotion]
+    candidate_only: [new_metric_variant, semantic_contract_version]
+  reconciliation_failure:
+    automatic: [mark_query_unconfirmed, notify_owner]
+    candidate_only: [validation_rule, source_or_formula_change]
+  source_change_detected:
+    automatic: [write_observation, impact_analysis]
+    candidate_only: [source_contract_version]
+
+promotion:
+  direct_feedback_to_production: forbidden
+  minimum_distinct_confirmations_for_candidate_alias: 3
+  require_original_query_evidence: true
+  require_business_owner_approval_for_semantics: true
+  require_golden_regression: true
+  deduplicate_by: [normalized_question_hash, metric_ref, correction_type]
+
+negative_feedback_behavior:
+  freeze_answer_as_unconfirmed: true
+  preserve_original_audit_record: true
+  never_rewrite_historical_release: true

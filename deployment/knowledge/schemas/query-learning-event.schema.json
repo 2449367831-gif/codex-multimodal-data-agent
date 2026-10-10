@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.data-agent/schemas/query-learning-event.schema.json",
+  "title": "Private query learning event",
+  "description": "A local, principal-scoped observation used to build review candidates. It is never a runtime metric contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "principal_hash",
+    "conversation_id",
+    "request_id",
+    "question_text",
+    "normalized_question",
+    "question_hash",
+    "route_family",
+    "outcome",
+    "execution_status",
+    "has_business_result",
+    "created_at"
+  ],
+  "properties": {
+    "event_id": {"type": "string", "pattern": "^le_[A-Za-z0-9_-]{8,120}$"},
+    "principal_hash": {"type": "string", "minLength": 8, "maxLength": 200},
+    "conversation_id": {"type": "string", "pattern": "^c_[A-Za-z0-9_-]{10,120}$"},
+    "request_id": {"type": "string", "minLength": 8, "maxLength": 200},
+    "question_text": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "normalized_question": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "question_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "route_family": {"enum": ["inbound", "sales_outbound", "inventory_turnover", "inventory", "procurement", "other"]},
+    "outcome": {"enum": ["completed", "failed", "blocked", "clarification_required", "running"]},
+    "execution_status": {"type": "string", "minLength": 1, "maxLength": 80},
+    "has_business_result": {"type": "boolean"},
+    "created_at": {"type": "number"}
+  }
+}

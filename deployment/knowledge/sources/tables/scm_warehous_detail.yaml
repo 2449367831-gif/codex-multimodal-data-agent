@@ -1,0 +1,36 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_warehous_detail
+version: 1.0.0
+status: candidate
+source_id: doris_ywzt_ods
+role: inbound_receipt_detail
+business_key: id
+aggregate_key: [cargo_owner_id, warehous_code, id]
+grain: One physical receipt detail; preserve item_code, batch_number and production_date even for repeated warehouse/SKU combinations.
+required_deduplication: true
+freshness:
+  field: updated_date
+  check: MAX(updated_date) measures source change only; production_date is not an ingestion watermark.
+join_to:
+  table: ywzt_ods.scm_warehous_header
+  "on": d.cargo_owner_id = h.cargo_owner_id AND d.warehous_code = h.warehous_code
+  cardinality: many_to_one_after_header_uniqueness_check
+fields:
+  id: {type: varchar, role: physical_line_key, nullable: false}
+  cargo_owner_id: {type: varchar, role: cargo_owner, nullable: false}
+  warehous_code: {type: varchar, role: receipt_key, nullable: false}
+  item_code: {type: varchar, role: receipt_item}
+  wms_code: {type: varchar, role: receiving_warehouse, nullable: false}
+  sku_code: {type: varchar, role: sku_key, nullable: false}
+  batch_number: {type: varchar, role: source_batch_number}
+  production_date: {type: datetime, role: production_time}
+  received_quantity: {type: decimal, role: received_quantity, description: Actual received quantity; missing values must not be fabricated as zero.}
+  unit: {type: varchar, role: source_quantity_unit, description: Keep original unit code; do not assume EA or add different units without a reviewed conversion.}
+  status: {type: varchar, role: logical_status, description: Candidate receipt-detail view retains 0.}
+  _fdl_marked_deleted: {type: varchar, role: logical_delete}
+  updated_date: {type: datetime, role: source_change_time}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_warehous_detail.yaml
+  semantic_changes_require_approval: true
+  key_quality: {enabled: true, lookback_days: 30}

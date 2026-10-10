@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "id": "warehouse-type-count",
+      "family": "lookup-composition",
+      "question": "查询名称包含沈阳的仓库，按仓库类型统计仓库数，仓库编码去重，同名不同编码分别计数，用表格展示。",
+      "required_columns": [["仓库类型", "类型"], ["仓库数", "仓库数量"]],
+      "forbidden_columns": ["仓库名称", "仓库编码"],
+      "checks": ["positive_integer_count", "unique_groups"]
+    },
+    {
+      "id": "fulfillment-share",
+      "family": "quantity-document-ratio",
+      "question": "查询2026年9月11日HJXH货主产成品实际销售出库，分别计算2C和2B的实发数量、出库单数，并计算各自实发数量占当天总量的百分比；未配置履约类型的单据单列，不能丢弃。用表格展示。",
+      "required_columns": [["2C/2B", "履约类型", "履约方式"], ["实发数量", "实际出库量", "实发量"], ["出库单数"], ["占比", "占比（%）", "占比(%)", "数量占比", "实发数量占比"]],
+      "checks": ["quantity_share"]
+    },
+    {
+      "id": "channel-fulfillment-inline-rules",
+      "family": "explicit-rule-layout",
+      "question": "查询2026-09-11全天 HJXH 货主产成品销售出库，按‘渠道细分 + 2C/2B’汇总，输出出库单数、实发数量、SKU数。口径：出库状态700、900、701、901；产成品 master_sku.sku_group = '50'；2C：terms_of_shipment = '20'；渠道细分取 master_store.price_group，关联枚举父级：2c9c0da1948322ec01948bac2924000a；排除逻辑删除数据。",
+      "required_columns": [["渠道名称", "渠道细分"], ["2C/2B", "履约类型", "履约方式"], ["出库单数"], ["实发数量", "实际销售出库量", "出库数量"], ["SKU数", "SKU 数", "SKU数量"]],
+      "forbidden_columns": ["结果列 1", "结果列 2", "结果列 3", "结果列 4", "结果列 5"]
+    },
+    {
+      "id": "generic-warehouse-type-share",
+      "family": "generic-composition",
+      "question": "查询名称包含沈阳的所有仓库，按货主和仓库编码联合去重，按仓库类型统计仓库数量和数量占比，同名不同编码分别计数，用中文表格展示。",
+      "required_columns": [["仓库类型", "类型"], ["仓库数", "仓库数量"], ["占比", "数量占比", "占比（%）"]],
+      "forbidden_columns": ["仓库名称", "仓库编码"],
+      "max_rows": 20,
+      "checks": ["positive_integer_count", "partition_share", "unique_groups"]
+    },
+    {
+      "id": "generic-warehouse-share-reconciled",
+      "family": "generic-business-then-validation",
+      "question": "查询名称包含沈阳的所有仓库，按货主和仓库编码联合去重，按仓库类型统计仓库数量和数量占比，同名不同编码分别计数，仓库类型未维护的单列。先生成分类统计，再用独立查询核对各分类仓库数量合计与同范围去重总仓库数量一致，全部核对通过后只展示仓库类型、仓库数量、数量占比三列业务表格，不展示对账明细。",
+      "required_columns": [["仓库类型", "类型"], ["仓库数", "仓库数量"], ["占比", "数量占比", "占比（%）"]],
+      "forbidden_columns": ["仓库名称", "仓库编码"],
+      "max_rows": 20,
+      "checks": ["positive_integer_count", "partition_share", "unique_groups"]
+    },
+    {
+      "id": "generic-warehouse-summary-detail",
+      "family": "generic-multi-table-reconciliation",
+      "question": "查询名称包含沈阳的所有仓库，排除逻辑删除。按货主和仓库编码联合去重，同名不同编码分别计数，类型未维护的单列。需要两张不同粒度的表：第一张标题为仓库类型汇总，列出仓库类型、仓库数量、数量占比（%）；第二张标题为仓库清单，完整列出货主编码、仓库编码、仓库名称、仓库类型，不使用TOP或LIMIT截断清单。再独立核对两张表各类型数量及总数一致，全部通过后同时展示两张表，不展示对账明细。",
+      "required_tables": [
+        {"titles": ["仓库类型汇总"], "required_columns": [["仓库类型"], ["仓库数量", "仓库数"], ["数量占比", "数量占比（%）"]], "checks": ["positive_integer_count", "partition_share", "unique_groups"]},
+        {"titles": ["仓库清单"], "required_columns": [["货主编码", "货主"], ["仓库编码"], ["仓库名称"], ["仓库类型"]], "checks": ["unique_groups"], "group_column_indices": [0, 1]}
+      ],
+      "warehouse_keyword": "沈阳",
+      "bundle_checks": ["warehouse_detail_partition"]
+    },
+    {
+      "id": "seven-day-warehouse",
+      "family": "window-parameterization",
+      "question": "近7个完整自然日各仓库实际销售出库量，用表格展示。",
+      "required_columns": [["仓库", "仓库名称"], ["数量", "实发数量", "实际销售出库量", "实际销售出库", "出库数量"]]
+    },
+    {
+      "id": "fourteen-day-warehouse",
+      "family": "window-parameterization",
+      "question": "近14个完整自然日各仓库实际销售出库量，用表格展示。",
+      "required_columns": [["仓库", "仓库名称"], ["数量", "实发数量", "实际销售出库量", "实际销售出库", "出库数量"]]
+    },
+    {
+      "id": "warehouse-period-comparison",
+      "family": "multi-period-comparison",
+      "question": "对比2026年9月1日至7日和9月8日至13日的HJXH成品实际销售出库，按仓库列出两段期间出库数量和日均量，只比较日均量的增减幅，分母为零时单独标注，不把无记录写成0。用表格展示。",
+      "required_columns": [["仓库", "仓库名称"], ["增减幅", "日均增减幅", "日均变化率"]],
+      "checks": ["period_daily_average"],
+      "period_days": [7, 6]
+    },
+    {
+      "id": "sku-ranking",
+      "family": "ranking",
+      "question": "昨天实际销售出库量TOP20的SKU，按实发数量从高到低用表格展示，不能使用分配数量。",
+      "required_columns": [["SKU", "SKU编码", "商品编码"], ["数量", "实发数量", "销售出库", "实际销售出库", "出库数量"]],
+      "max_rows": 20,
+      "checks": ["descending_quantity"]
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+schema_version: 1.0.0
+version: 2026-09-01.2
+provenance:
+  source_thread_id: 019eb0d0-51c3-73d1-b7cf-3e6acc2e0956
+  source_thread_title: 连接数仓了解数据库，生成月度分析
+  analyzed_at: "2026-09-09T00:00:00+08:00"
+  read_status: complete
+  read_method: Codex thread pagination through the final page; message content was reviewed before promotion.
+  corpus_summary:
+    user_messages: 392
+    explicit_business_corrections: 57
+  extraction_policy: Historical numbers, generated SQL, and one-off assumptions are evidence only. Only repeated stable rules or explicit business corrections are promoted into candidate contracts.
+
+thread_read_resolution:
+  current_contracts:
+    - sales.outbound_actual@2.0.0
+    - inventory.turnover_finished_goods_realtime@1.0.0
+    - inventory.turnover_finished_goods_snapshot@1.0.0
+    - inventory.turnover_7d_realtime@2.0.0
+  historical_sources_registered_as_evidence:
+    - ywzt_ods.scm_warehous_manage_backups
+    - ywzt_ods.scm_in_transit_backup
+    - ywzt_ods.scm_po_header
+    - ywzt_ods.scm_po_detail
+    - ywzt_ods.scm_transfer_order_header
+    - ywzt_ods.scm_transfer_order_detail
+    - ywzt_ods.scm_sales_shipment_allocate_wms
+    - dms_ods.t_sales_order
+    - dms_ods.t_sales_order_detail
+  promotion_boundary: Do not make a historical SQL executable by adding it to a current metric. Register its source, grain, freshness, and reconciliation contract first.
+
+historical_evidence_resolution:
+  completed_outbound_statuses:
+    explicit_thread_evidence: [700, 900, 701, 901]
+    current_contract: [700, 900, 701, 901]
+    resolution: The source business confirmation defines all four statuses as completed outbound. Do not narrow the generic actual-outbound contract to 700/900 only.
+  inventory_snapshot_and_transit:
+    snapshot_source: ywzt_ods.scm_warehous_manage_backups
+    snapshot_grain: [backups_date, cargo_owner_id, wms_code, sku_code]
+    transit_source: ywzt_ods.scm_in_transit_backup
+    key_union_required: true
+    resolution: Preserve transit-only keys; never left-join transit to inventory in a way that drops rows with no on-hand record.
+  transit_quantity:
+    variants:
+      - legacy_full_requested_transit
+      - remaining_unreceived_transit
+    resolution: These are non-equivalent business definitions. Ask once for the selected variant and do not combine purchase and transfer quantities until their status and receipt contracts are resolved.
+  report_specific_finished_goods:
+    owner: HJXH
+    category: master_sku.sku_group = '50' plus any explicitly approved edible-product exceptions
+    exclusions: packaging, equipment, ice, and auxiliary materials are report-specific exclusions, not global sales exclusions
+    resolution: Keep the operating-report profile separate from generic sales outbound and generic inventory queries.
+  purchase_and_sales_weight:
+    purchase_tons: received_quantity * master_sku.net_weight / 1000
+    sales_tons: ship_qty * master_sku.net_weight / 1000
+    resolution: Do not use request_quantity or a nullable precomputed total_weight for actual received-ton reporting without an explicit source contract.
+
+authority_order:
+  - current_request_explicit_scope
+  - selected_release_metric_contract
+  - latest_explicit_business_confirmation_for_same_source_and_metric
+  - live_reconciled_maintained_project_contract
+  - imported_project_evidence
+  - historical_sql_or_answer
+
+request_scope_capsule:
+  rebuild_for_every_request: true
+  dimensions: [metric_variant, owner, sku, warehouse_profile, channel, date_field, start_inclusive, end_exclusive, unit, output_grain]
+  omitted_dimension: ALL
+  continuation_rule: Prior scope may be reused only when the current message is an unambiguous continuation of the same metric and explicitly refers to the prior scope.
+  composite_rule: Resolve one capsule first, then map the same logical values into each component fact.
+  clarification_rule: Return all unresolved decisions in one selectable questions array; never guess or ask one question at a time.
+
+metric_families:
+  actual_sales_outbound:
+    selected_contract: sales.outbound_actual@2.0.0
+    quantity: shipment_detail.ship_qty
+    quantity_exclusion: scm_sales_shipment_allocate_wms.allocate_qty is reconciliation evidence only and must never be used as the actual-outbound measure.
+    business_date: shipment_header.ship_at
+    completion_statuses: [700, 900, 701, 901]
+    ref_order_type_scope: [JYCK, HHCK, BFCK, QTCK, "SO%"]
+    ref_order_type_rule: Do not narrow a generic actual sales-outbound request to JYCK; SO% is applied only when the selected request contract allows it.
+    status_scope: current sales shipment flow
+    source_order_rule: EXISTS over a deduplicated non-deleted sales-order business key; a raw header join is forbidden.
+    order_count: distinct outbound document
+    tons_rule: actual quantity times one validated SKU net weight divided by 1000; quantify missing-weight impact.
+    forbidden_defaults: [HJXH, finished_goods, operating_warehouse_profile, channel_filter]
+  realtime_available_inventory:
+    selected_contract: inventory.available_realtime@1.0.0
+    join_grain: [owner, warehouse, sku]
+    rule: Aggregate inventory and occupation independently before joining and apply the contract formula at key grain before rollup.
+    unresolved_alternatives: Different maintained reports use different lock, freeze, move-in, and occupation formulas; never merge them silently.
+  historical_inventory:
+    selected_contract: inventory.snapshot_quantity@1.0.0
+    rule: Require the exact requested snapshot date and preserve owner, warehouse, and SKU separation.
+    forbidden_fallback: nearest_available_snapshot
+  finished_goods_turnover:
+    business_confirmation_date: "2026-09-01"
+    ambiguity_group: turnover_inventory_point
+    fixed_denominator: Actual completed finished-goods sales outbound in the selected interval divided by complete natural days.
+    finished_goods_filter: Deduplicate master_sku by SKU and require sku_group 50 in both numerator and denominator.
+    variants:
+      - selected_contract: inventory.turnover_finished_goods_snapshot@1.0.0
+        numerator: Exact finished-goods inventory snapshot on end_exclusive minus one natural day.
+        default_when: A prior or historical interval is requested without an explicit current-real-time numerator.
+      - selected_contract: inventory.turnover_finished_goods_realtime@1.0.0
+        numerator: Current real-time finished-goods SUM(actual_quantity) from active inventory records.
+        default_when: Current, real-time, month-to-date, or recent complete-day turnover is requested.
+    required_equivalence: [owner, finished_goods_sku_population, narrower_sku_scope, warehouse_scope, unit, output_grain]
+    forbidden: [available_inventory_substitution, order_request_denominator, planned_quantity_denominator, average_of_ratios, unequal_component_scope, nearest_snapshot_fallback]
+    clarification_rule: Ask only for unresolved numerator point and time interval in one selectable array. Never ask the user to reconfirm the fixed formula or submit a new definition when one of these two variants applies.
+  in_transit:
+    status: source_contract_missing
+    ambiguity_group: transit_quantity_basis
+    variants:
+      - id: legacy_full_requested_transit
+        meaning: Compatibility with historical reports that count the full purchase requested quantity and selected transfer allocated quantities.
+      - id: remaining_unreceived_transit
+        meaning: Remaining open quantity after valid received quantities, with transfer quantity determined by status-specific rules.
+    rule: The two variants are not corrected versions of one another. Ask the user to select; remain blocked after selection until the required source contracts are registered.
+  channel_sales:
+    variants:
+      - id: actual_shipment_by_channel
+        date: shipment completion date
+        quantity: ship_qty
+      - id: community_order_replacement
+        date: order creation date shifted by the named report contract
+        quantity: request_qty
+      - id: terms_of_shipment_2c
+        rule: terms_of_shipment=20 is a distinct 2C fulfillment contract.
+    rule: Store type, channel code, terms of shipment, and community replacement are separate dimensions or variants; never substitute one silently.
+  purchase_and_receipt:
+    purchase_received_tons: received_quantity times net_weight divided by 1000
+    actual_warehouse_receipt: actual_arrival_date plus received_quantity
+    join_rule: Collapse receipt facts to purchase-order grain before joining purchase detail.
+  dms_shortage:
+    status: source_blocked_until_registered
+    meaning: Latest order-detail version with middleware stock quantity equal to zero.
+    forbidden_proxy: requested_quantity_minus_shipped_quantity
+  billing:
+    status: source_blocked_until_registered
+    variants: [system_accrual, carrier_bill, consumables_bill, storage_charge]
+    rule: Fee fields and bill types require explicit mappings and freshness checks.
+
+semantic_assertions:
+  - id: selected_sales_statuses
+    metric_ref: sales.outbound_actual@2.0.0
+    path: filters.completion_statuses
+    operator: equals
+    expected: [700, 900, 701, 901]
+  - id: realtime_finished_goods_turnover_uses_current_sales_contract
+    metric_ref: inventory.turnover_finished_goods_realtime@1.0.0
+    path: /dependency_versions/sales.outbound_actual
+    operator: equals
+    expected: 2.0.0
+  - id: snapshot_finished_goods_turnover_uses_current_sales_contract
+    metric_ref: inventory.turnover_finished_goods_snapshot@1.0.0
+    path: /dependency_versions/sales.outbound_actual
+    operator: equals
+    expected: 2.0.0
+  - id: realtime_finished_goods_turnover_checks_scope_equivalence
+    metric_ref: inventory.turnover_finished_goods_realtime@1.0.0
+    path: required_validations
+    operator: contains_all
+    expected: [component_scope_equivalence, complete_natural_days, turnover_ratio_aggregation]
+  - id: snapshot_finished_goods_turnover_checks_scope_equivalence
+    metric_ref: inventory.turnover_finished_goods_snapshot@1.0.0
+    path: required_validations
+    operator: contains_all
+    expected: [component_scope_equivalence, snapshot_date_exists, complete_natural_days, turnover_ratio_aggregation]
+  - id: seven_day_turnover_uses_current_sales_statuses
+    metric_ref: inventory.turnover_7d_realtime@2.0.0
+    path: filters.outbound_scope.completion_statuses
+    operator: equals
+    expected: [700, 900, 701, 901]
+
+result_states:
+  clarification_required: Business meaning or scope is unresolved; no query was run.
+  backend_rejected: SQL or source policy rejected execution; no business result exists.
+  query_failed: Doris execution failed or timed out; no business result exists.
+  live_result: A Doris tool call succeeded and all blocking metric validations passed.
+  live_result_with_warning: A Doris tool call succeeded and only quantified non-blocking issues remain.
+  truncated_result: A live result exceeded the row cap and must be labelled incomplete for omitted rows.

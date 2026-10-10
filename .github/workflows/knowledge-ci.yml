@@ -1,0 +1,27 @@
+name: published-snapshot-checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-validation:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Restore bundled knowledge
+        run: python scripts/restore_published_knowledge.py
+      - name: Validate published contracts and integrity
+        run: python -c "from pathlib import Path; from tools import validate_knowledge_base as v; v.ROOT=Path('deployment/knowledge').resolve(); errors,_,stats=v.validate_repository(); print(stats); print('\n'.join(errors)); raise SystemExit(bool(errors))"
+      - name: Run selected offline regressions
+        run: python -m pytest -q app/tests/test_business_sales_source.py app/tests/test_inventory_source_sql.py app/tests/test_turnover_template_v3.py app/tests/test_warehouse_turnover.py app/tests/test_query_outcomes.py

@@ -1,0 +1,2 @@
+# Published knowledge hashes refer to exact bytes, including line endings.
+deployment/knowledge/** -text

@@ -1,0 +1,56 @@
+contract_schema_version: 1.0.0
+id: sales.ranked_drilldown
+version: 1.0.0
+status: candidate
+business_concept: sales.shipment_quantity
+variant: finished_goods_ranked_with_reconciled_document_details
+display_name: Finished-goods sales ranking and reconciled drilldown
+aliases: [Finished-goods Top20 drilldown]
+business_definition: Rank finished-goods SKU actual sales shipment quantities and retain an immutable request-local ranking. Retrieve complete document-level detail on demand for a clicked ranked SKU under the original scope, and require exact agreement with its original rank, name, quantity, document count and all-sales controls before returning it. A checked detail snapshot can then be paged without further database queries.
+nearby_metrics_not_equivalent: [allocation_quantity, order_request_quantity, customer_channel_replacement, physical_source_detail_rows]
+applicability:
+  applicable_when: [The request requires finished-goods actual-sales ranking and drilldown to owner, warehouse, shipment-header customer code, outbound document and shipment time.]
+  not_applicable_when: [A different quantity, channel replacement, box or weight conversion, or physical line-level identifier is requested.]
+clarification:
+  ambiguity_group: ranked_sales_measure
+  question: Use actual shipped EA or another unconfirmed measure?
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: Ranking by SKU; drilldown by company_code + outbound_code + sku_code with checked header attributes
+unit: EA
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: Rank SUM(ship_qty) descending with sku_code ascending as the stable tie breaker. Reconcile each ranked quantity and distinct owner-qualified document count against its drilldown.
+sources:
+  required: [ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.master_sku, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  top_n: {required: false, default: 20, type: integer}
+  cargo_owner: {required: false, default: ALL}
+  warehouse_scope: {required: false, default: ALL}
+  sku_scope: {required: false, default: ALL}
+filters:
+  fact: Inherit sales.outbound_actual 2.0.0 statuses 700/900/701/901, source-order types, deletion filters and owner-qualified source-order existence. Do not use allocation quantities.
+  product: Finished group 50. The separate approved two-SKU exception set is opt-in only; it is never inferred for ordinary finished goods.
+  customer: Display the shipment header store_code as customer_code. Do not join customer master or silently decide its unresolved global versus owner-qualified identity.
+  dimensions: Deduplicate identical SKU and owner-qualified warehouse names before joining. Conflicting selected names or product classifications reject the result; missing names fall back to codes.
+  aggregation: Aggregate physical shipment detail by owner, outbound document and SKU before joining checked headers. Keep zero-quantity valid documents. No row-level rounding or forced decimal scale.
+  ranking: Apply Top N only after complete scoped SKU aggregation. Count company documents independently; summing SKU document counts is not a company document total.
+  freshness: Latest ship_at is a business event, not ETL completion. Two matching complete reads are required, but do not constitute a database-atomic snapshot.
+  reconciliation: Every selected detail key is unique, every per-SKU quantity and owner-qualified document count agrees, and selected totals never exceed all-SKU controls. Complete selected paging is required before exposing any drilldown. Ranking alone does not prove that detail was already fetched. Source quality, changed pages or capacity overflow do not yield partial success. Do not prefetch every ranked SKU detail merely to display the ranking; each clicked SKU retains the same bounded complete-report budget. An oversized individual drilldown remains an explicit capacity failure.
+  consistency: On-demand detail is a later read and not a database-atomic continuation of the ranking. A changed rank, name, quantity, distinct document count or global quantity/count/event controls rejects that drilldown without overwriting the original ranking. Unchanged aggregate controls cannot prove that all descriptive attributes were unchanged since ranking; per-detail values describe the later checked read.
+  persistence: Keep the checked snapshot immutable and in memory. A future public drilldown must be owner-scoped, screened and expiry-bound; business rows must not be persisted to evidence files.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, shipment_header_non_multiplication, sales_order_non_multiplication, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [sales.outbound_actual]
+dependency_versions: {sales.outbound_actual: 2.0.0}
+notes: T38 candidate. Publication, chat/API ownership and clickable frontend acceptance are not established by backend synthetic tests or a live compiler check. Existing published ranking routes are unchanged.
+updated_at: '2026-09-10'

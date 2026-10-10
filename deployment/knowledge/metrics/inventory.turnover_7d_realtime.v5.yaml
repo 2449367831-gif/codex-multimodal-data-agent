@@ -1,0 +1,157 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_7d_realtime
+version: 5.0.0
+status: active
+business_concept: inventory.turnover
+variant: approved_hybrid_sales_denominator
+display_name: 中心仓7天与分仓14天周转图片
+aliases:
+- 中心仓周转图片
+- 分仓周转图片
+- 近14天周转图片
+- 仓库周转图
+- 库存周转图片
+business_definition: Current approved inventory divided by daily average sales.business_quantity.
+  Community platform uses order request_qty at created minus one day; other channels
+  use ship_qty at ship_at. Center image uses 7 complete days and details 14 days;
+  independent aggregation with identical warehouse, owner and finished-goods scope.
+applicability:
+  applicable_when:
+  - User asks for inventory turnover with current approved sales movement.
+  not_applicable_when:
+  - User explicitly requests a conflicting denominator; clarify standard versus temporary
+    basis.
+  required_signals:
+  - turnover
+  negative_signals:
+  - explicit_conflicting_basis
+clarification:
+  ambiguity_group: turnover_component_basis
+  question: 采用已确认库存和销售动销口径；仅在当前要求明确冲突时确认差异。
+validity:
+  effective_from: '2026-10-10T00:00:00+08:00'
+  effective_to: null
+  supersedes:
+  - inventory.turnover_7d_realtime@4.0.0
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-10-10T00:00:00+08:00'
+grain: owner + warehouse + finished-goods SKU, then physical warehouse and explicit
+  center rollup
+unit: EA and days
+time_window:
+  timezone: Asia/Shanghai
+  field: ship_at
+  community_field: created
+  community_business_date: DATE_SUB(created, INTERVAL 1 DAY)
+  interval:
+    start: inclusive
+    end: exclusive
+  center_days_for_14d_template: 7
+  detail_days_for_14d_template: 14
+  end: today 00:00 or explicit exclusive end date
+  denominator: Unrounded approved hybrid movement divided by layer complete natural
+    days.
+formula: SUM(available_quantity + in_transit_quantity) / (SUM(approved_hybrid_sales_ea)
+  / layer_window_days)
+sources:
+  required:
+  - ywzt_ods.master_sku
+  - ywzt_ods.master_store
+  - ywzt_ods.master_wms
+  - ywzt_ods.scm_po_detail
+  - ywzt_ods.scm_po_header
+  - ywzt_ods.scm_sales_order_detail
+  - ywzt_ods.scm_sales_order_header
+  - ywzt_ods.scm_sales_shipment_allocate_wms
+  - ywzt_ods.scm_sales_shipment_detail
+  - ywzt_ods.scm_sales_shipment_header
+  - ywzt_ods.scm_stock_history
+  - ywzt_ods.scm_transfer_order_detail
+  - ywzt_ods.scm_transfer_order_header
+  - ywzt_ods.scm_warehous_manage
+  - ywzt_ods.scm_warehous_occupy
+parameters:
+  cargo_owner:
+    required: false
+    default: HJXH
+    type: string
+  inventory_basis:
+    required: true
+    default: available_plus_transit
+    type: enum
+  inventory_status:
+    required: true
+    default: ALL
+    type: enum
+  end_date_exclusive:
+    required: false
+    type: date
+  window_days:
+    required: false
+    type: integer
+    default: 14
+    minimum: 1
+    maximum: 3650
+filters:
+  template_profile: profiles/hjxh_turnover_template_v3.yaml
+  template_applies_to_window_days: 14
+  warehouse_scope: exact 9 centers and 42 listed subwarehouses; never add unlisted
+    master children
+  mapping_rule: user-approved report hierarchy by verified code overrides master parent;
+    do not mutate master data
+  warehouse_validation: active unique master mapping and exact verified name required
+    for all 51 codes; missing or changed mappings block
+  center_detail_additivity: center = own physical warehouse + listed details, each
+    physical warehouse counted exactly once
+  sku_scope: master_sku.sku_group = '50'
+  inventory_join_rule: Aggregate each component by cargo owner + warehouse CODE +
+    SKU, then join.
+  outbound_scope: sales.business_quantity@1.0.0; mutually exclusive shipments + community-platform
+    requests; shifted raw created range; d.status=0.
+  quantity_rounding: show daily sales as nearest integer HALF_UP; compute turnover
+    from unrounded aggregates, show two decimals
+  missing_inventory: An empty base stock source is unavailable evidence; never publish
+    an all-zero stock/turnover report.
+  legacy_other_windows: inventory.turnover_7d_realtime@2.0.0
+  inventory_basis: 'At owner + warehouse code + SKU grain: available = GREATEST(in_stock
+    - sales_occupation - transfer_occupation - (grouped stock_lock when nonzero, otherwise
+    grouped freeze), 0); in_transit = full purchase request quantity + active transfer
+    allocation quantity; total = available + in_transit.'
+  inventory_record: inventory_status = 'ZP' OR inventory_status IS NULL OR inventory_status
+    = ''; no extra logical-status predicate is implied
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- master_data_freshness
+- component_scope_equivalence
+- exact_operating_center_scope
+- warehouse_mapping_integrity
+- sales_order_non_multiplication
+- shipment_header_non_multiplication
+- inventory_net_nonnegative
+- control_total_reconciliation
+- complete_natural_days
+- turnover_ratio_aggregation
+reconciliation:
+- Reconcile independent seven-day and fourteen-day totals and detail row counts.
+- Both layers must contain the same 51 unique physical warehouse identities and inventory
+  values.
+- Center total equals sum of center rollups, not center plus already-included detail
+  panels.
+- Do not sum displayed rounded daily-sales values to calculate total turnover.
+execution:
+  mode: composite
+depends_on:
+- inventory.finished_goods_realtime
+- sales.business_quantity
+- inventory.current_components
+dependency_versions:
+  inventory.finished_goods_realtime: 3.0.0
+  inventory.current_components: 1.0.0
+  sales.business_quantity: 1.0.0
+notes: 用户明确确认：销售查询和周转动销都采用新SQL。中心7天、分仓14天，不改库存分子。实际物理出库旧合同仅供明确要求该口径时选择，不自动覆盖新默认。
+updated_at: '2026-10-10'

@@ -1,0 +1,104 @@
+contract_schema_version: 1.0.0
+id: sales.outbound_actual
+version: 2.0.0
+status: active
+business_concept: sales.shipment_quantity
+variant: actual_completed_outbound
+display_name: 实际销售出库量
+aliases: [实际销售出库量, 销售出库量, 销售发货量, 销售发货, 完成发货量, 实际发货量, 实际出货量, 完成出货量, 已完成出货量, 发货数量, 发货量, 已完成出库量, 出库数量, 出库量, 销量, 销售数量, 销售量, 生产产品]
+business_definition: Actual completed outbound quantity from the current middle-platform or Guanyuan shipment flow, using confirmed statuses 700, 900, 701 and 901, with a valid non-deleted source sales order. It is not requested quantity, planned quantity, or a channel-specific order replacement metric.
+nearby_metrics_not_equivalent: [sales_order_request_quantity, community_order_based_shipment]
+applicability:
+  applicable_when:
+    - The user explicitly asks for actual or completed sales outbound quantity.
+    - The requested date belongs to physical shipment completion time.
+  not_applicable_when:
+    - The user asks for requested, planned, unshipped, or channel-replacement quantity.
+    - The user explicitly requests a legacy status-compatibility report.
+  required_signals: [actual_outbound_or_completed_shipment]
+  negative_signals: [order_request, planned_quantity, unshipped_demand, channel_replacement, legacy_status_compatibility]
+clarification:
+  ambiguity_group: shipment_quantity_basis
+  question: 您要查实际完成出库量，还是订单请求量或特定渠道替换口径？
+validity:
+  effective_from: "2026-09-01T00:00:00+08:00"
+  effective_to: null
+  supersedes: [sales.outbound_actual@1.0.0]
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: "2026-09-07T00:00:00+08:00"
+grain: cargo_owner + outbound_warehouse + SKU + ship_date, then aggregate to the requested output grain
+unit: EA
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: SUM(d.ship_qty)
+fact_table: ywzt_ods.scm_sales_shipment_detail
+quantity_field: ship_qty
+time_field: ywzt_ods.scm_sales_shipment_header.ship_at
+valid_status: [700, 900, 701, 901]
+distinct_key: outbound_code
+required_joins:
+  - ywzt_ods.scm_sales_shipment_header.outbound_code
+  - ywzt_ods.scm_sales_order_header.sales_order_code
+exclusions:
+  - logical_deleted
+reconciliation:
+  - 分类数量合计必须等于总发货量
+  - 关联主数据前后实发数量不得变化
+  - 出库单数按 outbound_code 去重；销售订单数按 sales_order_code 去重
+sources:
+  required:
+    - ywzt_ods.scm_sales_shipment_header
+    - ywzt_ods.scm_sales_shipment_detail
+    - ywzt_ods.scm_sales_order_header
+  conditional:
+    - ywzt_ods.master_sku
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  cargo_owner: {required: false, default: ALL, sales_field: h.company_code}
+  sku_scope: {required: false, default: ALL, sales_field: d.sku_code}
+  warehouse_scope: {required: false, default: ALL, sales_field: h.facility_code}
+  output_grain: {required: true, examples: [total, ship_date, warehouse, sku]}
+filters:
+  completion_statuses: [700, 900, 701, 901]
+  shipment_header_key: [company_code, outbound_code]
+  completion_status_authority: "Explicit business confirmation in the source thread: 700, 900, 701, and 901 are completed outbound statuses for this contract."
+  valid_source_order_types: [JYCK, HHCK, BFCK, QTCK, "SO%"]
+  logical_delete: "IFNULL(h._fdl_marked_deleted, 'false') = 'false' AND IFNULL(d._fdl_marked_deleted, 'false') = 'false' AND the source-order EXISTS set contains only non-deleted rows"
+  shipment_header_deduplication: "After time, status, and deletion filters, reduce shipment header to one row per company_code and outbound_code before joining detail on both keys."
+  source_order_validity: "Require ref_order_type IN (JYCK, HHCK, BFCK, QTCK) or ref_order_type LIKE SO%, then use a correlated EXISTS over company_code and non-deleted sales_order_code; never directly join the sales-order header."
+  scope_defaults: "Omitted owner, SKU, warehouse, and channel scopes are ALL; do not inherit them from a prior request."
+  allocation_comparison:
+    status: unpublished
+    unit_relationship: unconfirmed
+    decided_by: current_project_requester
+    decided_at: "2026-09-10"
+    rule: "The requester deferred confirmation of allocate_qty versus ship_qty units. Do not label allocation as EA, subtract the quantities or use the difference as an actual-outbound validation. Actual-only queries remain available."
+  aggregate_measures:
+    actual_quantity: "SUM(ship_qty), using unrounded values for reconciliation."
+    outbound_documents: "Count distinct (company_code, outbound_code) after the same header and detail filters. Within one owner this is COUNT(DISTINCT outbound_code). Keep valid zero-quantity documents."
+    zero_quantity_outbound_documents: "Optional measure: after grouping the same qualified facts by the requested output grain, count distinct outbound documents whose summed ship_qty is exactly zero. This is only added when the user explicitly requests zero-quantity document counts; it is not a replacement for outbound_documents."
+    document_total: "Compute independently from the same fact set; do not sum SKU-level document counts because one outbound may contain multiple SKUs."
+    header_conflict: "Normalize and deduplicate identical qualified headers before joining detail. Conflicting qualified header attributes must be reported, not multiplied or silently selected. Conflict controls apply to headers contributing to the scoped fact set; unrelated SKU documents cannot block an exact-SKU request."
+    source_time: "MAX(ship_at) is the latest matched business event, not an ingestion freshness guarantee."
+  ranked_output:
+    supported: true
+    output_grain: sku
+    default_top_n: 20
+    max_top_n: 100
+    sort: "SUM(d.ship_qty) DESC, sku_code ASC"
+    tie_breaker: "sku_code ASC; never use an unstable database row order"
+    reconciliation: "The displayed ranking is computed from the same all-SKU total; negative quantities, blank or duplicate SKU rows, conflicting master names, missing controls, and a ranking total greater than the all-SKU total block the result."
+required_validations: [single_statement_and_read_only, source_freshness, business_date_semantics, metric_variant_resolved, metric_validation_isolation, shipment_status_and_deletion, shipment_header_non_multiplication, sales_order_non_multiplication]
+execution:
+  mode: sql_template
+  template: sql_templates/sales.outbound_actual.v2.sql
+template: sql_templates/sales.outbound_actual.v2.sql
+notes: Finished goods, operating warehouses, channels, and weight conversion are not default filters. Tons require the SKU net-weight contract and missing-weight impact reconciliation. Sales output may include an explicitly requested zero_quantity_outbound_documents column without dropping zero-quantity valid documents. A sales-only request must not run inventory validations. A request such as yesterday sales outbound Top 20 SKU uses this contract's actual completed outbound variant and the ranked_output controls.
+updated_at: "2026-09-01"

@@ -1,0 +1,159 @@
+contract_schema_version: 1.0.0
+status: active
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-10-10T00:00:00+08:00'
+parameters:
+  start_inclusive:
+    required: true
+    type: datetime
+  end_exclusive:
+    required: true
+    type: datetime
+  cargo_owner:
+    required: false
+    default: ALL
+    sales_field: h.company_code
+  sku_scope:
+    required: false
+    default: ALL
+    sales_field: d.sku_code
+  warehouse_scope:
+    required: false
+    default: ALL
+    sales_field: h.facility_code
+  output_grain:
+    required: true
+    examples:
+    - total
+    - ship_date
+    - warehouse
+    - sku
+  community_start:
+    required: true
+    type: datetime
+    derived: start_inclusive + 1 day; never ask user
+  community_end:
+    required: true
+    type: datetime
+    derived: end_exclusive + 1 day; never ask user
+grain: cargo_owner + warehouse + SKU + business_date, then requested aggregation
+unit: EA
+id: sales.business_quantity
+version: 1.0.0
+business_concept: sales.shipment_quantity
+variant: community_platform_request_replacement
+display_name: 销售数量（社区平台订单替换）
+aliases:
+- 销量
+- 销售数量
+- 销售量
+- 销售出库
+- 销售发货量
+- 总发货量
+- 销售动销
+- 社区平台销售
+business_definition: 默认销售查询与周转动销采用2026-10-10用户批准SQL。非社区平台按ship_qty和ship_at；社区平台按request_qty和created减一天。两类互斥相加，不把全部数量称为实际出库。
+applicability:
+  applicable_when:
+  - Sales queries and turnover movement use this default unless the current user explicitly
+    requires physical WMS shipment-only evidence.
+  not_applicable_when:
+  - Explicit physical-only actual shipments or unconfirmed quantity/unit conversions.
+  required_signals:
+  - sales_or_turnover
+  negative_signals:
+  - explicit_physical_only
+clarification:
+  ambiguity_group: shipment_quantity_basis
+  question: 仅当当前要求明确与默认社区平台替换口径冲突时，选择标准口径或临时实发口径。
+validity:
+  effective_from: '2026-10-10T00:00:00+08:00'
+  effective_to: null
+  supersedes: []
+time_window:
+  field: ship_at
+  community_field: created
+  community_business_date: DATE_SUB(created, INTERVAL 1 DAY)
+  interval: '[start_inclusive,end_exclusive)'
+  timezone: Asia/Shanghai
+  community_source_filter: created >= start_inclusive + 1 day AND created < end_exclusive
+    + 1 day
+formula: SUM(noncommunity_ship_qty) + SUM(community_platform_request_qty)
+sources:
+  required:
+  - ywzt_ods.scm_sales_shipment_header
+  - ywzt_ods.scm_sales_shipment_detail
+  - ywzt_ods.scm_sales_order_header
+  - ywzt_ods.scm_sales_order_detail
+  - ywzt_ods.master_store
+  - ywzt_ods.master_sku
+  - ywzt_ods.master_wms
+filters:
+  community_platform: master_store.type='Z001' AND master_store.group1='03'
+  ordinary: status IN (700,900,701,901); ref_order_type IN ('JYCK','HHCK','BFCK','QTCK')
+    OR LIKE 'SO%'; source sales order exists via original code JOIN; exclude community
+    platform. No extra deletion/status filters absent from approved SQL.
+  community: COALESCE(h._fdl_marked_deleted,'false')='false'; same for detail; d.status=0.
+    No header status or order type filter. Executable predicate overrides contradictory
+    comment.
+  channel: Z004=线上, Z001=线下, other/NULL=其他. Online platform codes follow original
+    SQL; offline distribution price_group='122'; offline other NOT(group1='03' OR
+    price_group='122'). Preserve NULL semantics; report subcategory gaps.
+  unit: Keep approved raw source quantities in EA; no allocate_qty, box or other invented
+    conversion.
+  scope_defaults: Omitted owner, warehouse, SKU and channel are ALL; apply each scope
+    to both independent branches.
+  joins: Keep supplied code joins; duplicates in participating source header/master
+    keys block publication. Do not silently deduplicate conflicts or MAX master values.
+  counts: Shipment outbound_code and community sales_order_code are different document
+    types; count separately. Never sum per-SKU distinct counts as global document
+    count.
+  output:
+    default_grain: business date + warehouse + SKU
+    reference_sql: knowledge/sales_user_sql_20261010.sql
+    field_names:
+    - 发货日期
+    - 仓库编码
+    - 仓库描述
+    - 商品编码
+    - 商品描述
+    - 总发货量
+    - 线上汇总
+    - 抖音
+    - 抖音小时达
+    - 拼多多系
+    - 快手系
+    - 淘宝系
+    - 京东系
+    - 唯品会
+    - 线上其它
+    - 线下汇总
+    - 线下社区团购_平台
+    - 线下社区团购_分销
+    - 线下其它
+    - 其它
+reconciliation:
+- Top-level online + offline + other equals total.
+- Both source branches are mutually exclusive.
+- Verify master and header key uniqueness before using numbers; duplicated joins block.
+- Subcategory NULL gaps must be disclosed without silently changing SQL.
+- Use unrounded totals; display two decimal places.
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- business_date_semantics
+- sales_order_non_multiplication
+- shipment_header_non_multiplication
+- control_total_reconciliation
+execution:
+  mode: sql_template
+  template: sql_templates/sales.business_quantity.facts.sql
+template: sql_templates/sales.business_quantity.facts.sql
+supporting_templates:
+- sql_templates/sales.business_quantity.sql
+notes: 用户明确确认：销售查询和周转动销都采用新SQL。中心7天、分仓14天，不改库存分子。实际物理出库旧合同仅供明确要求该口径时选择，不自动覆盖新默认。
+updated_at: '2026-10-10'

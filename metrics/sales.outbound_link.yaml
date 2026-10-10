@@ -1,0 +1,62 @@
+contract_schema_version: 1.0.0
+id: sales.outbound_link
+version: 1.0.0
+status: candidate
+business_concept: sales.outbound_order_link
+variant: outbound_source_relationship
+display_name: 出库单与销售订单关联链路
+aliases: [出库关联链路, 出库单来源单号, 销售订单出库关系]
+business_definition: A diagnostic link view that preserves the relationship between a qualified outbound document, its source sales order, source order code and source order type without multiplying shipment detail rows.
+applicability:
+  applicable_when:
+    - The user requests an outbound document relationship chain.
+  not_applicable_when:
+    - The user requests shipment quantity, order amount, or SKU detail measures.
+  required_signals: [outbound_link]
+  negative_signals: [quantity_measure, amount_measure]
+clarification:
+  ambiguity_group: outbound_link_identity
+  question: 未指定出库单号时，一次选择查询范围内最新出库的一张单或全部出库单；不要求输入澄清文字。
+validity:
+  effective_from: "2026-09-11T00:00:00+08:00"
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  approved_by: null
+  approved_at: null
+  validation_level: contract_only
+grain: cargo_owner + outbound_code + distinct detail source_order_code; outbound and matched order attributes must be unique at their owner-qualified document grains
+unit: none
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: No additive measure; counts and detail rows must be derived at their requested grain.
+sources:
+  required:
+    - ywzt_ods.scm_sales_shipment_header
+    - ywzt_ods.scm_sales_order_header
+    - ywzt_ods.scm_sales_order_detail
+parameters:
+  start_inclusive: {required: false, type: datetime, default: ALL}
+  end_exclusive: {required: false, type: datetime, default: ALL}
+  cargo_owner: {required: false, type: string, default: ALL}
+  outbound_code: {required: false, type: string, default: ALL}
+  probe_limit: {required: true, type: integer, default: 501}
+  latest: {required: false, type: boolean, default: false}
+filters:
+  header_identity: "TRIM(company_code) + TRIM(outbound_code)"
+  source_order_identity: "TRIM(company_code) + TRIM(ref_order_code)"
+  source_fields: "Shipment ref_order_code is the referenced order, matched order sales_order_code is the validated identity; header source_order_code, detail source_order_code, header source_platform_code, order order_type and shipment ref_order_type remain separate columns."
+  logical_delete: "Exclude known deleted rows; null deletion flags follow source defaults. Unknown flags in otherwise eligible rows fail validation. Order detail status must be 0."
+  relationship_policy: "Collapse identical normalized relationship tuples, reject conflicting active header/order tuples, and preserve all distinct detail source codes including NULL. Aggregation selectors are never exposed unless variants=1. No shipment detail or additive measures are joined."
+  missing_relationship: "Retain an outbound row with an explicit unmatched state; absence of a matching sales order is not evidence that the outbound does not exist."
+  latest_selection: "Only when explicitly requested or selected: choose the active document with greatest non-null ship_at inside the requested scope; ties use cargo_owner then outbound_code ascending. Validate all active observations of the selected key, and retain every distinct detail source code."
+required_validations: [single_statement_and_read_only, business_date_semantics, shipment_header_non_multiplication, sales_order_non_multiplication]
+execution:
+  mode: sql_template
+  template: sql_templates/sales.outbound_link.sql
+notes: Candidate compiler, request-local routing, handler, screened presentation and synthetic chat/browser checks exist. Independent live sampling verifies relationship fields. Deployed live chat acceptance and publication remain required. Header ship_at is an event time, not an ingestion watermark; freshness completeness is not established. No order amount or shipment quantity is implied by this link contract.
+updated_at: "2026-09-11"

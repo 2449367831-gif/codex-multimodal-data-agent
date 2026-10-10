@@ -1,0 +1,59 @@
+contract_schema_version: 1.0.0
+id: inventory.components
+version: 1.0.0
+status: candidate
+business_concept: inventory.quantity
+variant: quality_stock_split_occupation_lock_or_freeze
+display_name: Inventory components with separate sales and transfer occupation
+aliases: [Inventory components, Sales and transfer occupation]
+business_definition: Current quality stock by owner, warehouse and SKU with independently aggregated sales and transfer occupation, and grouped lock-or-freeze deductions. This is the T15-T18 candidate derived from the referenced historical thread, not the existing record-deduction or sku_inventory turnover variant.
+nearby_metrics_not_equivalent: [inventory.available_realtime, inventory.finished_goods_realtime, historical_inventory, available_plus_transit]
+applicability:
+  applicable_when: [The quality-stock and split-occupation component definition is explicitly selected.]
+  not_applicable_when: [Record allocation and move-in deductions, historical inventory, transit totals or a different occupation window are required.]
+clarification:
+  ambiguity_group: inventory_component_formula
+  question: Use split occupation with grouped lock-or-freeze, or the separate legacy record-deduction definition?
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner_id + wms_code + sku_code; preserve all three string keys
+unit: EA, inherited from the historical quality-stock report; no box or weight conversion
+time_window:
+  mode: current_state_with_explicit_occupation_cutoff
+  timezone: Asia/Shanghai
+  inventory: Current quality stock; no production-date or historical snapshot filter
+  occupation: created_date strictly greater than the explicit occupation_since instant, pinned once per request. The historical report uses request time minus 60 days. Future dates are diagnosed, not silently filtered.
+  freshness_field: stock_change_time
+formula: available = MAX(in_stock - sales_occupation - transfer_occupation - IF(grouped_stock_lock != 0, grouped_stock_lock, grouped_freeze), 0)
+sources:
+  required: [ywzt_ods.scm_warehous_manage, ywzt_ods.scm_warehous_occupy]
+parameters:
+  observed_at: {required: true, type: datetime, description: A timezone-aware request observation instant}
+  occupation_since: {required: true, type: datetime, description: Explicit exclusive lower bound; never infer from an earlier question}
+  owner_codes: {required: false, default: ALL}
+  warehouse_codes: {required: false, default: ALL}
+  sku_codes: {required: false, default: ALL}
+filters:
+  stock: inventory_status is exactly ZP, empty or NULL. Do not add record status zero, finished-goods or operating-warehouse predicates from another report.
+  occupation: Numeric status other than 1; NULL status is excluded as in historical SQL. Malformed nonnull status is a quality failure, not implicit numeric zero. Missing dates of potentially valid occupation are quality failures.
+  classification: Raw pre_order_code beginning with HJXH-TH is transfer; all other valid occupation is sales. NULL or empty references follow the historical sales branch but are counted as missing references. The prefix is a document rule, not an HJXH owner filter.
+  measure: Occupation uses freeze_quantity only, not occupation lock_quantity or WMS shipment allocate_qty.
+  lock: stock_lock is varchar. NULL or blank is zero; bounded signed decimal strings convert exactly. Other nonblank values fail quality checks rather than silently becoming zero.
+  aggregation: Aggregate each source independently to all three keys before joining; preserve legitimate duplicate-looking fact rows. No dimension join may multiply facts.
+  orphan_occupation: Keep keys occurring only in occupation as diagnostic rows. Their available and raw-available quantities are NULL, not an invented zero-stock result.
+  projections: Display allocation equals sales occupation; business-platform occupation equals sales plus transfer. move_in_quantity is diagnostic only and is not added to this availability formula. No transit or total-with-transit measure is fabricated.
+  anomalies: Preserve signed raw components and source-row counts of negative stock, negative stock-plus-move-in, negative lock, negative freeze, negative move-in and negative occupation, plus missing references and future occupation. Count negatives before grouping so positive rows cannot conceal them. Zero flooring does not remove these diagnostics.
+  anomaly_projection: Retain owner, warehouse, SKU, all raw and derived components and affected-source-row counts for each issue. Separate source_data, source_metadata and calculation_effect. Flooring and availability exceeding stock are formula effects, not proof of a SQL defect. Failed formula or pre-join reconciliation rejects the report rather than returning trusted diagnostic quantities.
+  freshness: Source maxima and missing timestamps are diagnostic; they are not ETL completion or an atomic snapshot.
+  reconciliation: Every component and source-row count reconciles to independent pre-join controls. Python recomputes raw availability, the chosen deduction, nonnegative availability and separate occupation displays at each key using isolated precision sufficient for Doris widened decimal sums and the bounded result capacity, with inexact arithmetic rejected. Exact pages and two matching complete scans are required.
+required_validations: [single_statement_and_read_only, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: Pending publication, full live verification and chat integration. The old inventory.available_realtime contract and the separately chosen sku_inventory turnover numerator remain unchanged.
+updated_at: '2026-09-10'

@@ -1,0 +1,14 @@
+group_id: dms_ods.sales_order
+version: 1.0.0
+status: active
+purpose: DMS 订单及积分兑换来源地图
+tables:
+  header: dms_ods.t_sales_order
+  detail: dms_ods.t_sales_order_detail
+keys:
+  order: order_code
+  customer: customer_code
+rules:
+  - 订单数、客户数和兑换数量分别按各自业务键统计
+  - 逻辑删除按来源字段过滤
+  - 不将订单请求量替换为实际出库量

@@ -1,0 +1,41 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.sku_inventory
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: current_inventory_snapshot
+grain: Multiple current inventory facts can share owner, warehouse display name and SKU. SUM all signed source quantities to aggregate_key before joining; the unique reporting row exists only after aggregation. required_deduplication means this unique aggregated join input, not DISTINCT, arbitrary latest-row selection, or rejecting repeated raw aggregate_key values.
+aggregate_key: [owner, wms_desc, sku_code]
+required_deduplication: true
+freshness:
+  field: ingestion_update_time
+  check: Read information_schema.tables.update_time for ywzt_ods.sku_inventory as the virtual ingestion_update_time; this is ingestion freshness, not a row business snapshot date
+  expected_lag: 24h
+fields:
+  owner: {type: string, role: cargo_owner, nullable: false, description: Inventory owner used to prevent cross-owner joins.}
+  wms_desc: {type: string, role: warehouse_display_name, nullable: false, description: Warehouse name used only with the approved profile name-to-code uniqueness check.}
+  sku_code: {type: string, role: sku_key, nullable: false, description: SKU code joined to the deduplicated finished-goods catalog.}
+  sku_name: {type: string, role: display_name, nullable: true, description: Source SKU display name; never used as a join key.}
+  available_quantity: {type: decimal, role: available_quantity, nullable: true, description: Current available quantity.}
+  in_transit_quantity: {type: decimal, role: in_transit_quantity, nullable: true, description: Current inbound or transfer quantity in transit.}
+  total_quantity: {type: decimal, role: source_total_quantity, nullable: true, description: Source total quantity retained for reconciliation only.}
+  instock_quantity: {type: decimal, role: source_instock_quantity, nullable: true, description: Source in-stock quantity retained for reconciliation only.}
+  allocated_quantity: {type: decimal, role: allocated_quantity, nullable: true, description: Occupied or allocated quantity reported by the source.}
+  today_outbound: {type: decimal, role: today_outbound, nullable: true, description: Source operational measure not used for the governed seven-day movement window.}
+  yesterday_outbound: {type: decimal, role: yesterday_outbound, nullable: true, description: Source operational measure not used for the governed seven-day movement window.}
+  seven_days_outbound: {type: decimal, role: source_seven_days_outbound, nullable: true, description: Source measure retained for comparison only because it has no declared row date.}
+  available_days: {type: decimal, role: source_available_days, nullable: true, description: Source derived field not used as the report turnover formula.}
+  locked_quantity: {type: decimal, role: locked_quantity, nullable: true, description: Source locked quantity.}
+  frozen_quantity: {type: decimal, role: frozen_quantity, nullable: true, description: Source frozen quantity.}
+  business_platform_occupied: {type: decimal, role: platform_occupied_quantity, nullable: true, description: Source platform occupation quantity.}
+  purchase_in_transit: {type: decimal, role: purchase_in_transit_quantity, nullable: true, description: Source purchase-in-transit quantity.}
+  transfer_in_transit: {type: decimal, role: transfer_in_transit_quantity, nullable: true, description: Source transfer-in-transit quantity.}
+  ingestion_update_time: {type: datetime, role: ingestion_freshness, nullable: true, virtual: true, description: Virtual metadata field populated from information_schema.tables.update_time; the source has no row-level snapshot timestamp.}
+join_to:
+  table: ywzt_ods.master_wms
+  "on": Only when the requested warehouse/profile or warehouse-aligned output needs it, the approved profile maps TRIM(wms_desc) to exactly one active HJXH master_wms code; unrestricted name joins are forbidden. ALL-warehouse totals require no such mapping. Never reject an ALL-warehouse total because unrelated warehouses are outside an HJXH profile.
+  cardinality: many_to_one_after_profile_allowlist
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.sku_inventory.yaml
+  semantic_changes_require_approval: true

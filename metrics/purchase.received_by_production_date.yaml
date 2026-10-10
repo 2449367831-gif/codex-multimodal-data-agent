@@ -1,0 +1,58 @@
+contract_schema_version: 1.0.0
+id: purchase.received_by_production_date
+version: 1.0.0
+status: candidate
+business_concept: purchase.receipt_quantity
+variant: finished_goods_arrival_day_grouped_by_production_day
+display_name: Finished-goods purchase receipts by production date
+aliases: [purchase receipt production date summary, production-date inbound summary]
+business_definition: Count valid finished-goods purchase receipt headers and detail rows occurring in an explicit arrival-day window, grouped by production date and the source unit code. Quantities in different source units are never added together or converted implicitly.
+nearby_metrics_not_equivalent: [purchase.received_detail, inventory.finished_goods_realtime, sales.outbound_actual]
+applicability:
+  applicable_when: [A complete arrival-day window, finished-goods scope and production-date grouping are explicit.]
+  not_applicable_when: [The request asks for planned purchase quantity, transfer receipts or an arrival-only total without production grouping.]
+clarification:
+  ambiguity_group: procurement_receipt_basis
+  question: Use nonblank purchase order code, inbound type 10, or both. Do not merge these variants silently.
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: live_route_regression
+  approved_by: null
+  approved_at: null
+grain: production_day + source_unit; receipt and detail counts retain owner and receipt identity during aggregation
+unit: received_quantity is reported in source_unit; no cross-unit conversion
+time_window:
+  arrival_field: h.actual_arrival_date
+  arrival_interval: "[arrival_start, arrival_end)"
+  production_field: d.production_date
+  timezone: Asia/Shanghai
+sources:
+  required: [ywzt_ods.scm_warehous_header, ywzt_ods.scm_warehous_detail, ywzt_ods.master_sku]
+parameters:
+  arrival_start: {required: true, type: datetime}
+  arrival_end: {required: true, type: datetime}
+  warehouse_codes: {required: false, default: ALL}
+  owner_code: {required: false, default: ALL}
+  purchase_basis: {required: true, type: enum, values: [purchase_order_reference, purchase_type, both]}
+filters:
+  purchase_order_reference: "TRIM(COALESCE(h.po_order_code, '')) <> ''"
+  purchase_type: "TRIM(CAST(h.warehous_type AS STRING)) = '10'"
+  header_status: "TRIM(CAST(h.status AS STRING)) = '0'"
+  cancellation: "TRIM(CAST(h.warehous_status AS STRING)) <> '16'"
+  logical_delete: Both header and detail _fdl_marked_deleted normalize to false.
+  finished_goods: "master_sku.sku_group = '50' with conflicting SKU-group variants rejected"
+  detail_quality: Production date, received quantity and source unit must be present; negative quantity fails validation.
+  joins: Normalize owner and receipt code before joining header to detail; join SKU through master_sku after de-duplicating conflicting groups.
+  freshness: Actual arrival and production timestamps describe business facts, not ingestion completion.
+  reconciliation:
+    - Detail total must equal the sum of grouped detail counts.
+    - Detail identity must be unique after owner, receipt and detail normalization.
+    - Header variants must not conflict within the eligible receipt identity.
+    - Every output quantity is retained by source unit; totals across units are not calculated.
+    - Empty matching data is no_data, not a zero-value substitute.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, control_total_reconciliation]
+execution: {mode: sql_template, template: app/agent_core/receipt_summary.py}
+notes: Candidate contract for the explicit production-date summary route. Publish after business approval and release-manifest update.
+updated_at: '2026-09-18'

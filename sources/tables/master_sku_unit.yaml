@@ -1,0 +1,30 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.master_sku_unit
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: sku_unit_dimension
+business_key: id
+grain: Physical unit records; derive a unique SKU box specification only after checking every unit-40 record.
+aggregate_key: [sku_code]
+required_deduplication: true
+fields:
+  id: {type: string, role: record_key}
+  cargo_owner_id: {type: string, role: source_owner, description: Owner metadata must not silently narrow the historically SKU-keyed box lookup. Different owner specifications are reported as conflicts.}
+  sku_code: {type: string, role: sku_key}
+  unit: {type: string, role: unit_code, description: Historical business rule identifies box unit as 40.}
+  ea_convert_quantity: {type: integer, role: ea_per_box, nullable: true, description: EA conversion quantity; positive values may support box conversion. Multiple distinct values are unresolved conflicts.}
+  status: {type: string, role: source_status, nullable: true, description: No status filter is approved by the historical unit-40 lookup; do not infer active codes.}
+  updated_date: {type: datetime, role: source_modified_at, nullable: true}
+freshness:
+  field: updated_date
+  check: Source modification time is not ingestion freshness. Re-read complete scoped unit controls and require the same result before presentation.
+  expected_lag: null
+join_to:
+  table: ywzt_ods.scm_sales_shipment_detail
+  "on": TRIM(master_sku_unit.sku_code) = TRIM(scm_sales_shipment_detail.sku_code), after unit aggregation
+  cardinality: many physical unit records to one validated specification; left lookup preserves missing specifications without multiplying sales facts
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.master_sku_unit.yaml
+  semantic_changes_require_approval: true

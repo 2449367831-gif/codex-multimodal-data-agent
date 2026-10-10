@@ -1,0 +1,56 @@
+contract_schema_version: 1.0.0
+id: sales.sku_name_quality
+version: 1.0.0
+status: active
+business_concept: sales.sku_name_provenance
+variant: master_display_with_source_diagnostics
+display_name: 出库SKU名称来源与异常检查
+aliases: [SKU名称冲突, SKU名称来源, 出库商品名称检查]
+business_definition: Keep actual outbound measures unchanged at owner plus SKU grain, independently inspect shipment-detail, linked order-detail and current master names, and report missing or inconsistent names without matching by name.
+nearby_metrics_not_equivalent: [historical_name_snapshot, name_based_product_match, sales_order_request_quantity]
+applicability:
+  applicable_when: [The request explicitly asks for actual sales outbound and SKU name provenance or missing/conflicting name diagnostics.]
+  not_applicable_when: [The outbound measure is unresolved or the request requires a historically effective name or an unregistered source-status variant.]
+clarification:
+  ambiguity_group: sku_name_outbound_basis
+  question: 本次名称检查对应实际销售出库，还是其他出库或订单请求口径？
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: live_reconciled
+  approved_by: project_design_delegation
+  approved_at: "2026-09-10T00:00:00+08:00"
+grain: cargo_owner + sku_code; never group sales quantities by display names
+unit: Actual shipped EA and distinct outbound documents; name observations are physical source rows, not quantities or distinct orders.
+time_window:
+  field: shipment_header.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+  omitted: ALL available shipment times. Never inherit an earlier interval or invent a recent-time default. An incomplete or unrecognized explicit date cannot become ALL.
+formula: SUM(ship_qty) from the reviewed sales fact set; count distinct nonblank trimmed names independently by owner, SKU and name source.
+sources:
+  required: [ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.scm_sales_order_detail, ywzt_ods.master_sku, ywzt_ods.master_wms]
+parameters:
+  start_inclusive: {required: false, type: datetime}
+  end_exclusive: {required: false, type: datetime}
+  cargo_owner: {required: false, default: ALL}
+  sku_scope: {required: false, default: ALL}
+  warehouse_scope: {required: false, default: ALL}
+filters:
+  actual_facts: Inherit sales.outbound_actual@2.0.0, including ship_qty, owner-qualified documents, four completed statuses and valid non-deleted source orders. Name rows cannot alter this fact set.
+  shipment_names: Inspect only non-deleted shipment-detail observations whose owner, outbound and SKU key exists in the qualified facts.
+  order_names: Inspect non-ETL-deleted order-detail observations whose owner, source-order and SKU key links to a qualified shipment. This is name provenance across recorded detail statuses, not an active-order quantity metric; do not assume that status 0 is required here.
+  master_names: Inspect all current SKU-master names by exact SKU code, without an invented owner or status filter. This is not a historical name snapshot.
+  normalization: Trim whitespace and treat empty names as missing. Preserve name case and SKU-code case; never match different codes by name.
+  display: Use the current master name only when its nonblank name is unique. Otherwise show the SKU code and identify the missing/conflicting master; do not silently substitute order or shipment names.
+  duplicates: Identical names do not increase the distinct-name count. Source-row counts deliberately retain repeated observations and are not order counts. A source order with multiple shipments is selected once using EXISTS, never repeated by joining each shipment.
+  anomalies: Count missing physical name observations separately for each source. Zero source rows is a separate missing-source condition. More than one distinct name across the sources marks the owner-SKU group as conflicting; these flags do not imply the shipment quantities are wrong.
+  reconciliation: Preserve every owner-SKU key and quantity, verify full-scope EA total and independent document controls, reject inconsistent variant/missing counts, duplicate keys, partial results and conflicting shipment headers.
+  freshness: MAX(ship_at) is the latest matched business event, not an ingestion watermark. Master names are current. Two matching complete reads are required before display; this detects observed changes but is not an atomic snapshot.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [sales.outbound_actual]
+dependency_versions: {sales.outbound_actual: 2.0.0}
+notes: Technical presentation and provenance policy implemented under the requester's explicit delegation to design the agent. It retains the already approved actual-outbound measure and existing master-name preference; it does not approve a new order quantity or other outbound variant. Ambiguous outbound requests require one selection before execution. Independent runtime reconciliation passed; running-chat acceptance is tracked separately in the acceptance register.
+updated_at: "2026-09-10"

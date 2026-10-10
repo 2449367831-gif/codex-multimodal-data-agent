@@ -1,0 +1,89 @@
+id: hjxh_turnover_template_v3
+version: 3.0.0
+status: approved
+approved_by: current_project_requester
+approved_at: '2026-09-20T00:00:00+08:00'
+authority: user_template_361918be_and_confirmed_separate_windows
+verified_at: '2026-09-20'
+verification: active HJXH master_wms code and exact name, one record per warehouse
+cargo_owner: HJXH
+center_window_days: 7
+detail_window_days: 14
+center_summary_mode: rollup_scope
+inventory_basis: available_plus_transit
+scope_policy: exact_list_no_implicit_children
+mapping_policy: explicit_report_assignment_overrides_master_parent_without_mutating_master
+layout_columns:
+  - [9660544, WMS000245, WMS000019]
+  - [WMS000296, 9813421, WMS000232]
+  - [10114790, WMS000005, TJWWC-777]
+centers:
+  - code: WMS000005
+    name: 皇家小虎成都-万纬仓
+    details:
+      - {code: P854CSB, name: 皇家小虎贵州顺丰仓xs}
+      - {code: WH0017527, name: 皇家小虎成都京东代发仓xs}
+      - {code: WH0025620, name: 皇家小虎重庆京东代发仓xs}
+      - {code: WMS000172, name: 皇家小虎昆明万纬仓xs}
+  - code: '9813421'
+    name: 皇家小虎合肥万纬仓xs
+    details:
+      - {code: P021CSC, name: 皇家小虎上海顺丰仓xs}
+      - {code: P571CSA, name: 皇家小虎杭州顺丰仓xs}
+      - {code: WH0026857, name: 皇家小虎南京京东代发仓xs}
+      - {code: '9572214', name: 皇家小虎南京-普洛斯仓xs}
+      - {code: WMS000206, name: 皇家小虎杭州-万纬仓xs}
+  - code: '9660544'
+    name: 皇家小虎济南-万维仓xs
+    details:
+      - {code: '11024536', name: 皇家小虎徐州代发仓xs}
+      - {code: '10851380', name: 皇家小虎山东济宁代发仓xs}
+      - {code: WMS000018, name: 皇家小虎山东潍坊代发仓xs-新（2.0）}
+      - {code: '10870326', name: 皇家小虎山东临沂代发仓xs}
+      - {code: WMS000210, name: 皇家小虎德州京东代发仓xs}
+      - {code: WMS000285, name: 皇家小虎青岛顺丰仓（新）xs}
+  - code: WMS000296
+    name: 皇家小虎广州顺德万纬仓xs
+    details:
+      - {code: WH8070549, name: 皇家小虎海南京东代发仓xs}
+      - {code: P769CSB, name: 皇家小虎东莞顺丰仓xs}
+      - {code: WMS000153, name: 皇家小虎泉州万纬仓xs}
+      - {code: GZHYC-777, name: 皇家小虎广州-弘一仓xs}
+      - {code: WMS000017, name: 皇家小虎揭阳代发仓xs}
+      - {code: '9552343', name: 皇家小虎广西普冷仓库xs}
+  - code: TJWWC-777
+    name: 皇家小虎天津-万纬仓
+    details:
+      - {code: P022CSA, name: 皇家小虎天津顺丰仓xs}
+      - {code: WH0007477, name: 皇家小虎北京京东代发仓xs}
+      - {code: WMS000281, name: 皇家小虎保定-代发仓（新）xs}
+      - {code: P471CSB, name: 皇家小虎呼和浩特顺丰仓xs}
+  - code: WMS000019
+    name: 皇家小虎河北石家庄仓xs
+    details:
+      - {code: P351CSB, name: 皇家小虎晋中顺丰仓xs}
+  - code: '10114790'
+    name: 皇家小虎长沙黄兴万纬仓xs
+    details:
+      - {code: P713CWA, name: 皇家小虎黄冈顺丰仓xs}
+      - {code: P027CSA, name: 皇家小虎武汉顺丰仓xs}
+      - {code: WH8079587, name: 皇家小虎长沙京东代发仓xs}
+      - {code: WMS000034, name: 皇家小虎南昌万纬仓xs}
+      - {code: WMS000204, name: 皇家小虎长沙雨花常温-万纬仓xs}
+  - code: WMS000232
+    name: 皇家小虎沈阳-鲜生活仓xs
+    details:
+      - {code: P451CSA, name: 皇家小虎哈尔滨顺丰仓xs}
+      - {code: WH0021759, name: 皇家小虎吉林京东代发仓xs}
+      - {code: WH0008850, name: 皇家小虎沈阳京东代发仓xs}
+  - code: WMS000245
+    name: 皇家小虎郑州-万纬仓xs
+    details:
+      - {code: P371CSA, name: 皇家小虎郑州顺丰仓xs}
+      - {code: WMS000247, name: 皇家小虎临潼顺丰仓xs}
+      - {code: WH8086850, name: 皇家小虎甘肃京东代发仓xs}
+      - {code: WH0017005, name: 皇家小虎郑州京东代发仓xs}
+      - {code: '11165152', name: 皇家小虎阜阳代发仓xs}
+      - {code: '10342587', name: 皇家小虎郑州-常温品代发仓xs}
+      - {code: P991CSB, name: 皇家小虎乌鲁木齐顺丰仓xs}
+      - {code: WMS000248, name: 皇家小虎西安京东仓xs}

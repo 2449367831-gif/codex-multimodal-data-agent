@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>内网访问审批</title>
+  <link rel="stylesheet" href="/static/network-access.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Doris Query Agent</p>
+        <h1>内网访问审批</h1>
+        <p class="subtitle">仅服务机本地可操作。批准后，IP 会立即获得聊天服务访问权限。</p>
+      </div>
+      <button id="refresh" class="button secondary" type="button">刷新列表</button>
+    </header>
+    <section class="panel" aria-labelledby="pending-title">
+      <div class="panel-heading">
+        <div>
+          <h2 id="pending-title">访问申请</h2>
+          <p id="status" class="status" role="status">正在加载…</p>
+        </div>
+        <span id="pending-count" class="count">0</span>
+      </div>
+      <div id="table-wrap" class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>客户端 IP</th><th>申请备注</th><th>状态</th><th>首次申请</th><th>最近访问</th><th>访问次数</th><th>操作</th></tr>
+          </thead>
+          <tbody id="requests"></tbody>
+        </table>
+        <p id="empty" class="empty" hidden>暂无访问申请。</p>
+      </div>
+    </section>
+    <p class="footer-note">白名单保存在本机 SQLite 中，服务重启后仍然有效。</p>
+  </main>
+  <script src="/static/network-access.js" defer></script>
+</body>
+</html>

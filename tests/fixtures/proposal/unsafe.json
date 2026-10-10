@@ -1,0 +1,1 @@
+{"baseline_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","changes":[{"kind":"metric","id":"test.metric","set":{"notes":"unsafe"}}]}

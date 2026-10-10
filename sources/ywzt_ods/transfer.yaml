@@ -1,0 +1,15 @@
+group_id: ywzt_ods.transfer
+version: 1.0.0
+status: active
+purpose: 调拨单及调拨在途来源地图
+tables:
+  header: ywzt_ods.scm_transfer_order_header
+  detail: ywzt_ods.scm_transfer_order_detail
+  transit_snapshot: ywzt_ods.scm_in_transit_backup
+keys:
+  transfer_order: [cargo_owner_id, transfer_order_code]
+  sku_warehouse: [cargo_owner_id, wms_code, sku_code]
+rules:
+  - 调拨占用、调拨在途和调拨出库是不同事实，不得混用
+  - 来源字段不确定时先查询 information_schema
+  - 不将请求量、分配量默认为实际收发量

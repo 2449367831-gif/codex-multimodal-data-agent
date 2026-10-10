@@ -1,0 +1,38 @@
+contract_schema_version: 1.0.0
+id: sales.transfer_outbound
+version: 1.0.0
+status: active
+business_concept: transfer_outbound
+display_name: 调拨实际出库
+aliases: [调拨出库, 调拨实际出库, 调拨发出]
+business_definition: 完成状态的调拨出库单实际发出数量；不与销售出库混算。
+grain: warehouse and outbound document, aggregated by warehouse
+unit: EA
+time_window:
+  timezone: Asia/Shanghai
+  field: ship_at
+  interval: [inclusive, exclusive]
+formula: SUM(scm_sales_shipment_detail.ship_qty)
+parameters:
+  cargo_owner: {required: false, default: HJXH, type: string}
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  output_grain: {required: true, default: warehouse, type: enum}
+sources:
+  required:
+    - ywzt_ods.scm_sales_shipment_header
+    - ywzt_ods.scm_sales_shipment_detail
+    - ywzt_ods.master_wms
+filters:
+  owner: HJXH by deployment scope
+  order_type: ref_order_type = DBCK
+  completed_status: [700, 900, 701, 901]
+  exclusions: logical deleted headers and details
+  quantity_basis: ship_qty; allocate_qty is not used as the actual quantity
+reconciliation:
+  warehouse_sum_equals_total: true
+  duplicate_header_policy: latest version per company and outbound code
+  zero_quantity_rows: retained in source controls, not converted to positive quantity
+required_validations: [single_statement_and_read_only, source_freshness, shipment_status_and_deletion, shipment_header_non_multiplication, control_total_reconciliation]
+approval:
+  state: approved

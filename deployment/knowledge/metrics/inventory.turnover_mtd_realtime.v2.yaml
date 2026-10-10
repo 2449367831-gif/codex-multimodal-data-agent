@@ -1,0 +1,87 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_mtd_realtime
+version: 2.0.0
+status: verified_template
+business_concept: inventory.turnover_days
+variant: realtime_inventory_mtd_actual_outbound
+display_name: 本月实时库存周转天数
+aliases: [本月实时库存周转, 本月库存周转天数, 实时库存周转天数]
+business_definition: Current real-time available inventory divided by month-to-date average actual completed sales outbound under exactly the same owner, SKU, warehouse-profile, unit, and reporting-grain scope. The stock point and sales end time are intentionally different and must both be shown.
+nearby_metrics_not_equivalent: [inventory.turnover_historical_month, inventory.turnover_order_request, inventory.turnover_average_of_ratios]
+applicability:
+  applicable_when:
+    - The numerator is current available inventory and the denominator is completed sales outbound over complete natural days.
+    - The default sales window is month start to today at 00:00, left closed and right open.
+  not_applicable_when:
+    - The numerator is historical inventory or the denominator is sales-order requested quantity.
+    - Inventory and outbound use different warehouse, owner, SKU, unit, or grain scopes.
+    - The requested calculation averages lower-grain turnover ratios.
+  required_signals: [turnover_days, current_inventory, actual_outbound]
+  negative_signals: [historical_inventory, order_request, component_scope_mismatch, average_of_ratios]
+clarification:
+  ambiguity_group: turnover_component_basis
+  question: 请确认周转分子用当前可用库存，分母用实际完成销售出库量，并对两部分使用完全相同的范围，是否采用该口径？
+validity:
+  effective_from: "2026-09-01T00:00:00+08:00"
+  effective_to: null
+  supersedes: [inventory.turnover_mtd_realtime@1.0.0]
+approval:
+  business_owner: unassigned
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: requested reporting grain; each component must be independently aggregated under one shared scope capsule before calculating the ratio
+unit: days
+time_window:
+  inventory_point:
+    kind: current_state
+  sales_interval:
+    interval: "[month_start, today_00_00)"
+    timezone: Asia/Shanghai
+    override_policy: only_when_explicitly_requested
+formula: "SUM(current_available_ea) / (SUM(valid_ship_qty_ea) / complete_natural_days)"
+depends_on:
+  - inventory.available_realtime
+  - sales.outbound_actual
+dependency_versions:
+  inventory.available_realtime: 1.0.0
+  sales.outbound_actual: 2.0.0
+sources:
+  required:
+    - ywzt_ods.scm_warehous_manage
+    - ywzt_ods.scm_sales_shipment_header
+    - ywzt_ods.scm_sales_shipment_detail
+    - ywzt_ods.scm_sales_order_header
+  conditional:
+    - ywzt_ods.scm_warehous_occupy
+    - ywzt_ods.master_sku
+parameters:
+  month_start: {required: true, type: datetime}
+  sales_end_exclusive: {required: true, type: datetime}
+  cargo_owner:
+    required: false
+    default: ALL
+    component_fields: {inventory: cargo_owner_id, sales: h.company_code}
+  sku_scope:
+    required: false
+    default: ALL
+    component_fields: {inventory: sku_code, sales: d.sku_code}
+  warehouse_scope:
+    required: false
+    default: ALL
+    component_fields: {inventory: wms_code, sales: h.facility_code}
+  profile_id: {required: false, default: null}
+  output_grain: {required: true, examples: [total, warehouse, sku]}
+filters:
+  component_scope_invariant:
+    dimensions: [cargo_owner, sku_scope, warehouse_scope, profile_id, unit, output_grain]
+    rule: Resolve one scope capsule, apply it independently to both components, and block if either component cannot express the same warehouse universe.
+  historical_period_policy: A prior natural month requires a released historical-snapshot turnover contract; current inventory is never a proxy.
+required_validations: [single_statement_and_read_only, source_freshness, business_date_semantics, metric_variant_resolved, metric_validation_isolation, component_scope_equivalence, inventory_key_aggregation, available_nonnegative, shipment_status_and_deletion, shipment_header_non_multiplication, sales_order_non_multiplication, complete_natural_days, turnover_ratio_aggregation]
+execution:
+  mode: composite
+  template: sql_templates/inventory.turnover_mtd_realtime.sql
+template: sql_templates/inventory.turnover_mtd_realtime.sql
+notes: Return null and label no_movement when outbound is zero. Never average warehouse or SKU turnover ratios for a total. A prior-month request is blocked until a historical snapshot coverage contract is approved.
+updated_at: "2026-09-01"

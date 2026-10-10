@@ -1,0 +1,169 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_finished_goods_realtime
+version: 2.0.0
+status: deprecated
+business_concept: inventory.turnover_days
+variant: realtime_finished_goods_over_average_actual_sales
+display_name: 当前实时成品库存周转天数
+aliases:
+- 当前实时成品库存周转
+- 实时成品库存周转
+- 当前实时库存周转天数
+- 库存周转天数
+- 库存周转
+- 成品库存周转
+business_definition: Current real-time finished-goods inventory divided by average
+  actual completed finished-goods sales quantity over the selected complete-natural-day
+  interval, with identical owner, SKU, warehouse, unit, and reporting-grain scope
+  in both components.
+nearby_metrics_not_equivalent:
+- inventory.turnover_finished_goods_snapshot
+- inventory.turnover_mtd_realtime
+- inventory.turnover_order_request
+- inventory.turnover_average_of_ratios
+applicability:
+  applicable_when:
+  - The numerator follows the user-confirmed default or explicit selection of current
+    real-time finished-goods available quantity plus in-transit quantity; a prior
+    sales interval alone does not imply historical inventory.
+  - The denominator is actual completed finished-goods sales outbound divided by complete
+    natural days in the selected interval.
+  not_applicable_when:
+  - Historical stock snapshot or requested/planned sales quantities.
+  required_signals:
+  - turnover_days
+  - current_realtime_finished_goods
+  - average_actual_finished_goods_sales
+  negative_signals:
+  - historical_snapshot
+  - order_request
+  - planned_quantity
+  - component_scope_mismatch
+  - average_of_ratios
+clarification:
+  ambiguity_group: turnover_inventory_point
+  question: 请选择周转分子；分母固定为所选区间内实际完成销售出库成品的日均数量。
+validity:
+  effective_from: '2026-10-10T00:00:00+08:00'
+  effective_to: '2026-10-10T00:00:00+08:00'
+  supersedes:
+  - inventory.turnover_finished_goods_realtime@1.0.0
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-10-10T00:00:00+08:00'
+grain: requested reporting grain after independently aggregating both components under
+  one shared scope capsule
+unit: days
+time_window:
+  inventory_point:
+    kind: current_state
+  sales_interval:
+    interval: '[start_inclusive, end_exclusive)'
+    day_count: DATEDIFF(end_exclusive, start_inclusive)
+    boundary_policy: complete natural days only
+    timezone: Asia/Shanghai
+formula: SUM(current_realtime_finished_goods_ea) / (SUM(valid_finished_goods_ship_qty_ea)
+  / complete_natural_days)
+depends_on:
+- inventory.finished_goods_realtime
+- sales.outbound_actual
+- inventory.current_components
+dependency_versions:
+  inventory.finished_goods_realtime: 3.0.0
+  sales.outbound_actual: 2.0.0
+  inventory.current_components: 1.0.0
+sources:
+  required:
+  - ywzt_ods.master_sku
+  - ywzt_ods.scm_sales_shipment_header
+  - ywzt_ods.scm_sales_shipment_detail
+  - ywzt_ods.scm_sales_order_header
+  - ywzt_ods.scm_warehous_manage
+  - ywzt_ods.scm_warehous_occupy
+  - ywzt_ods.scm_po_header
+  - ywzt_ods.scm_po_detail
+  - ywzt_ods.scm_transfer_order_header
+  - ywzt_ods.scm_transfer_order_detail
+  - ywzt_ods.scm_sales_shipment_allocate_wms
+  - ywzt_ods.scm_stock_history
+  - ywzt_ods.master_wms
+parameters:
+  start_inclusive:
+    required: true
+    type: datetime
+  end_exclusive:
+    required: true
+    type: datetime
+  cargo_owner:
+    required: false
+    default: ALL
+    component_fields:
+      inventory: cargo_owner_id
+      sales: h.company_code
+  sku_scope:
+    required: false
+    default: ALL_WITHIN_FINISHED_GOODS
+    component_fields:
+      inventory: sku_code
+      sales: d.sku_code
+  warehouse_scope:
+    required: false
+    default: ALL
+    component_fields:
+      inventory: wms_code
+      sales: h.facility_code
+  output_grain:
+    required: true
+    examples:
+    - total
+    - warehouse
+    - sku
+filters:
+  fixed_sku_population: Both components join one deduplicated master_sku key set and
+    require TRIM(sku_group) = '50'.
+  inventory_basis: 'At owner + warehouse code + SKU grain: available = GREATEST(in_stock
+    - sales_occupation - transfer_occupation - (grouped stock_lock when nonzero, otherwise
+    grouped freeze), 0); in_transit = full purchase request quantity + active transfer
+    allocation quantity; total = available + in_transit.'
+  outbound_basis: SUM(ship_qty) with statuses 700, 900, 701, and 901, non-deleted
+    shipment rows, and a valid non-deleted source sales order.
+  component_scope_invariant:
+    dimensions:
+    - cargo_owner
+    - sku_scope
+    - warehouse_scope
+    - unit
+    - output_grain
+    rule: Resolve one scope capsule and apply it independently to both components
+      before calculating the ratio.
+  inventory_join_rule: Aggregate each component by cargo owner + warehouse CODE +
+    SKU, then join.
+  inventory_record: inventory_status = 'ZP' OR inventory_status IS NULL OR inventory_status
+    = ''; no extra logical-status predicate is implied
+  missing_inventory: An empty base stock source is unavailable evidence; never publish
+    an all-zero stock/turnover report.
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- business_date_semantics
+- metric_variant_resolved
+- metric_validation_isolation
+- component_scope_equivalence
+- inventory_key_aggregation
+- inventory_net_nonnegative
+- shipment_status_and_deletion
+- shipment_header_non_multiplication
+- sales_order_non_multiplication
+- complete_natural_days
+- turnover_ratio_aggregation
+execution:
+  mode: composite
+notes: User explicitly replaced the current-inventory basis on 2026-10-10. Reference
+  sales columns using allocate_qty, JYCK and 700/900 are outside this inventory adoption;
+  actual sales and turnover denominator remain the released ship_qty basis. Preserve
+  raw precision; display two decimals. Center images retain the approved nine-center
+  template, seven complete days for centers and fourteen for details.
+updated_at: '2026-10-10'

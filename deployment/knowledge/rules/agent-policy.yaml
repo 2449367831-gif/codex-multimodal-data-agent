@@ -1,0 +1,21 @@
+version: 1.0.0
+scope_rules:
+  - Create a new task contract for every user request.
+  - Treat prior request filters as context_only; never apply them without an explicit current instruction.
+  - Use ALL for an omitted owner, SKU, warehouse, channel, or product range.
+  - When omitted conditions change metric meaning, return every required decision in one selectable questions array; never ask one question at a time or request free-form clarification text.
+routing_rules:
+  - A sales-only task may not load inventory facts.
+  - An inventory-only task may not load shipment facts unless demand, pickup, coverage, or turnover is requested.
+  - Composite metrics must aggregate each fact at its own declared grain before joining.
+sql_rules:
+  - Use a single permitted read-only statement.
+  - Use fully qualified table names.
+  - Use half-open date ranges.
+  - Parse SQL with SQLGlot before execution; parser success does not replace business validation.
+output_rules:
+  - After a successful live Doris query, the Codex host/UI may expose one bounded, screened plain-text business answer containing the requested values and their units, time range, scope, grain, and any freshness or truncation caveat needed to interpret them.
+  - The business answer must never contain SQL, raw database rows, column or binding details, physical table/source details, credentials, audit contents, or internal execution diagnostics. The host owns final escaping and safety screening before display.
+  - Return every required clarification choice in one selectable questions array; the host owns the visible labels and one-time selection token.
+  - Label incomplete or blocked output instead of presenting it as confirmed.
+  - Detailed definitions, source/freshness evidence, filters or predicates, validation evidence, and SQL remain internal execution/audit data; only the concise result interpretation fields required above may cross the chat boundary.

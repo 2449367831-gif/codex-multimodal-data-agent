@@ -1,0 +1,32 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_sales_shipment_header
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: sales_outbound_header
+business_key: outbound_code
+aggregate_key: [company_code, outbound_code]
+grain: one outbound document per company_code and outbound_code after duplicate and conflicting-header checks
+required_deduplication: true
+freshness:
+  field: ship_at
+  check: MAX(ship_at)
+fields:
+  outbound_code: {type: string, role: join_key}
+  ship_at: {type: datetime, role: business_date}
+  status: {type: integer, role: status}
+  company_code: {type: string, role: cargo_owner}
+  delete_flag: {type: integer, role: logical_delete}
+  facility_code: {type: string, role: warehouse_key}
+  ref_order_code: {type: string, role: source_order}
+  ref_order_type: {type: string, role: source_order_type}
+  terms_of_shipment: {type: string, role: fulfillment_type}
+  store_code: {type: string, role: store_key}
+  _fdl_marked_deleted: {type: string, role: logical_delete}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_sales_shipment_header.yaml
+  semantic_changes_require_approval: true
+  key_quality:
+    enabled: true
+    lookback_days: 30

@@ -1,0 +1,41 @@
+contract_schema_version: 1.0.0
+id: dms_ods.t_sales_order
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: dms_order_fact
+business_key: sales_order_code
+grain: one current DMS order header after version and logical-delete resolution
+aggregate_key: [sales_order_code]
+required_deduplication: true
+freshness:
+  field: updated_time
+  check: MAX(updated_time) must cover the requested paid_time end boundary or the result is marked incomplete
+  expected_lag: department-defined
+join_to:
+  table: dms_ods.t_sales_order_detail
+  "on": TRIM(t_sales_order.sales_order_code) = TRIM(t_sales_order_detail.sales_order_code)
+  cardinality: one-to-many
+fields:
+  owner_manager: {type: string, role: employee_reference, nullable: true, description: 'Physical VARCHAR verified through MCP metadata; relates to t_employee.employee_id, not customer identity'}
+  province_department_name: {type: string, role: province_display_name, nullable: true, description: Native order-header province department name; not equivalent to province/city fallback organization mapping}
+  customer_code: {type: string, role: customer_key, nullable: true, description: Order-header customer code; confirmed physical VARCHAR; preserve leading zeros and do not infer from name}
+  customer_name: {type: string, role: customer_display_name, nullable: true, description: Historical customer name recorded on the order header; not an employee or current customer-master lookup}
+  sales_order_code: {type: string, role: order_key, nullable: false, description: DMS order business key}
+  order_type: {type: string, role: order_type, nullable: false, description: SO16 identifies a points redemption order}
+  paid_status: {type: string, role: payment_status, nullable: true, description: Paid status; value 1 is paid}
+  paid_time: {type: datetime, role: payment_time, nullable: true, description: Business date for points redemption reporting}
+  order_status: {type: string, role: order_status, nullable: true, description: DMS order lifecycle status}
+  after_sales_status: {type: string, role: after_sales_status, nullable: true, description: Used to exclude refunded after-sales status 107 on order status 101}
+  is_points_order: {type: integer, role: points_order_flag, nullable: true, description: Header-level points-order flag; physical Doris type is tinyint and the value must equal 1}
+  deleted_flag: {type: integer, role: logical_delete_flag, nullable: true, description: Numeric logical-delete flag}
+  _fdl_marked_deleted: {type: string, role: cdc_delete_flag, nullable: true, description: CDC logical-delete marker}
+  id: {type: integer, role: version_tiebreaker, nullable: false, description: Source row identifier}
+  version: {type: integer, role: version_number, nullable: true, description: Source version number}
+  created_time: {type: datetime, role: created_at, nullable: true, description: Source creation timestamp}
+  updated_time: {type: datetime, role: updated_at, nullable: true, description: Source update timestamp}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/dms_ods.t_sales_order.yaml
+  semantic_changes_require_approval: true
+  key_quality: {enabled: true, lookback_days: 3650}

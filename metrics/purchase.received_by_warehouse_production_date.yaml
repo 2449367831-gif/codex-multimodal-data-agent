@@ -1,0 +1,53 @@
+contract_schema_version: 1.0.0
+id: purchase.received_by_warehouse_production_date
+version: 1.0.0
+status: candidate
+business_concept: purchase.receipt_quantity
+variant: finished_goods_arrival_window_by_warehouse_and_production_date
+display_name: Finished-goods purchase receipts by warehouse and production date
+aliases: [warehouse production-date receipt summary, warehouse purchase inbound report]
+business_definition: Count valid finished-goods purchase receipts in the requested arrival window, grouped by warehouse, production date and source unit, with SKU count, planned quantity and actual received quantity.
+approved_defaults:
+  purchase_basis: inbound_type_10
+  planned_quantity_field: scm_warehous_detail.total_quantity
+  actual_received_quantity_field: scm_warehous_detail.received_quantity
+  null_production_date: keep_as_explicit_group
+grain: warehouse + production_date + source_unit
+unit: planned_quantity and received_quantity remain in source_unit; no cross-unit conversion
+time_window:
+  arrival_field: scm_warehous_header.actual_arrival_date
+  arrival_interval: "[arrival_start, arrival_end)"
+  timezone: Asia/Shanghai
+sources:
+  required: [ywzt_ods.scm_warehous_header, ywzt_ods.scm_warehous_detail, ywzt_ods.master_wms, ywzt_ods.master_sku]
+parameters:
+  arrival_start: {required: true, type: datetime}
+  arrival_end: {required: true, type: datetime}
+  warehouse_names: {required: true, type: list}
+  warehouse_codes: {required: false, default: ALL}
+  owner_code: {required: false, default: ALL}
+filters:
+  purchase_basis: "TRIM(CAST(scm_warehous_header.warehous_type AS STRING)) = '10'"
+  header_status: "TRIM(CAST(scm_warehous_header.status AS STRING)) = '0'"
+  cancellation: "TRIM(CAST(scm_warehous_header.warehous_status AS STRING)) <> '16'"
+  logical_delete: Header and detail _fdl_marked_deleted normalize to false.
+  finished_goods: "master_sku.sku_group = '50' with conflicting SKU-group variants rejected"
+  warehouse_mapping: Match detail wms_code to active master_wms and require requested name terms.
+  null_production_date: Keep and label as production_date_empty; do not silently discard.
+reconciliation:
+  - Detail identity is unique after owner, receipt and detail normalization.
+  - Group detail counts equal the control detail count.
+  - Planned and actual quantities are nonnegative and kept by source unit.
+  - Receipt and warehouse name mappings must not have conflicting variants.
+  - Empty matching data is no_data, not a zero-value substitute.
+required_validations:
+  - single_statement_and_read_only
+  - source_freshness
+  - business_date_semantics
+  - metric_variant_resolved
+  - metric_validation_isolation
+  - receipt_detail_non_multiplication
+  - warehouse_mapping_complete
+  - production_date_group_preserved
+execution: {mode: sql_template, template: app/agent_core/receipt_summary.py}
+updated_at: '2026-09-18'

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f6f8" />
+    <link rel="icon" type="image/jpeg" href="/static/assets/royal-tiger/tiger-avatar.jpg" />
+    <title>皇家小虎取数 Agent · Doris</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260924-report-entry-1" />
+  </head>
+  <body>
+    <a class="skip-link" href="#chatScroll">跳到对话内容</a>
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24"><path d="m21 3-7.8 18-3.5-7.7L2 9.8 21 3Z" /><path d="m9.7 13.3 4.9-4.9" /></symbol>
+      <symbol id="icon-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" /></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4.3 4.3L19 6.6" /></symbol>
+      <symbol id="icon-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7" /></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" /></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M19.5 15.4A8 8 0 0 1 8.6 4.5 8.5 8.5 0 1 0 19.5 15.4Z" /></symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M9 7V4h6v3M6 7l1 14h10l1-14" /></symbol>
+      <symbol id="icon-retry" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.7-3.8L4 9" /><path d="M4 5v4h4M4 13a8 8 0 0 0 14.7 3.8L20 15" /><path d="M20 19v-4h-4" /></symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></symbol>
+      <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></symbol>
+      <symbol id="icon-book" viewBox="0 0 24 24"><path d="M5 4.5h11a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3V4.5Z" /><path d="M8 20V7.5a3 3 0 0 1 3-3M9 9h6M9 12h6" /></symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 4 8 4-8 4-8-4 8-4Z" /><path d="m4 12 8 4 8-4M4 16l8 4 8-4" /></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16" /></symbol>
+      <symbol id="icon-thumbs-up" viewBox="0 0 24 24"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Z" /><path d="M7 21h9.2a2 2 0 0 0 1.9-1.4l2.3-7A2 2 0 0 0 18.5 10H14l.7-3.1A3.2 3.2 0 0 0 11.6 3L7 10Z" /></symbol>
+      <symbol id="icon-message-square" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" /><path d="M8 9h8M8 13h5" /></symbol>
+      <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="会话导航">
+        <div class="brand-lockup">
+          <div class="brand-asset" aria-hidden="true">
+            <img src="/static/assets/royal-tiger/royal-tiger-logo-banner.png" width="104" height="54" alt="" />
+          </div>
+          <div>
+            <strong>皇家小虎取数 Agent</strong>
+            <span>皇家小虎 · Doris</span>
+          </div>
+        </div>
+
+        <button class="new-chat-button" id="newChatButton" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-plus" /></svg>
+          <span>新建界面会话</span>
+        </button>
+        <button class="report-entry-button" id="reportEntryButton" type="button" aria-haspopup="dialog" aria-controls="reportDialog">
+          <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg>
+          <span>生成数据报告</span>
+        </button>
+        <button class="definition-button" id="definitionButton" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-book" /></svg>
+          <span>提交新口径</span>
+        </button>
+        <button class="learning-button" id="learningButton" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg>
+          <span>学习总结</span>
+          <span class="learning-count" id="learningCount" aria-label="已记录问题数">0</span>
+        </button>
+
+        <div class="sidebar-section-heading">
+          <span>我的会话</span>
+          <button class="icon-button subtle" id="clearHistoryButton" type="button" title="清空当前显示" aria-label="清空当前显示">
+            <svg class="icon" aria-hidden="true"><use href="#icon-trash" /></svg>
+          </button>
+        </div>
+        <nav class="conversation-list" id="conversationList" aria-label="我的会话列表"></nav>
+        <div class="conversation-empty" id="conversationEmpty">
+          <span>暂无会话</span>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="runtime-note">
+            <span class="status-dot" id="sidebarStatusDot"></span>
+            <span id="sidebarStatusText">正在检查 Doris</span>
+          </div>
+          <span class="timezone-note">Asia/Shanghai</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-only" id="sidebarToggle" type="button" title="打开会话导航" aria-label="打开会话导航" aria-controls="sidebar" aria-expanded="false">
+              <svg class="icon" aria-hidden="true"><use href="#icon-menu" /></svg>
+            </button>
+            <div class="breadcrumb">
+              <span>皇家小虎取数</span>
+              <span class="breadcrumb-separator">/</span>
+              <strong id="breadcrumbTitle">取数会话 1</strong>
+            </div>
+          </div>
+          <img class="topbar-mascot" src="/static/assets/royal-tiger/tiger-wave.png" width="54" height="54" alt="" aria-hidden="true" />
+          <div class="topbar-actions">
+            <div class="connection-status" id="connectionStatus" aria-live="polite">
+              <span class="status-dot"></span>
+              <span>检查连接</span>
+            </div>
+            <div class="context-status" id="contextStatus" aria-live="polite">
+              <span class="status-dot"></span>
+              <span>上下文准备中</span>
+            </div>
+            <button class="icon-button" id="themeToggle" type="button" title="切换外观" aria-label="切换外观">
+              <svg class="icon theme-icon-sun" aria-hidden="true"><use href="#icon-sun" /></svg>
+              <svg class="icon theme-icon-moon" aria-hidden="true"><use href="#icon-moon" /></svg>
+            </button>
+            <button class="icon-button panel-toggle" id="inspectorToggle" type="button" title="显示执行过程" aria-label="显示执行过程" aria-controls="inspector" aria-expanded="false">
+              <svg class="icon" aria-hidden="true"><use href="#icon-panel" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="workspace-grid">
+          <section class="chat-column" aria-label="皇家小虎数据任务">
+            <section class="rule-picker" id="rulePicker" aria-labelledby="rulePickerTitle">
+              <div class="rule-picker-header">
+                <div>
+                  <span class="eyebrow">REVIEWED RULES</span>
+                  <h2 id="rulePickerTitle">规则取数</h2>
+                  <p>选择已核验规则并设置条件，直接执行。</p>
+                </div>
+                <span class="rule-version" id="ruleCatalogVersion">加载中</span>
+              </div>
+              <div class="rule-catalog" id="ruleCatalog" role="list" aria-label="已核验规则">
+                <span class="rule-catalog-loading">正在加载规则</span>
+              </div>
+              <form class="rule-form" id="ruleForm" hidden>
+                <div class="rule-form-heading">
+                  <div>
+                    <strong id="ruleFormTitle">规则条件</strong>
+                    <span id="ruleFormDescription"></span>
+                  </div>
+                  <button class="icon-button subtle" id="ruleFormClose" type="button" title="关闭规则条件" aria-label="关闭规则条件">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-close" /></svg>
+                  </button>
+                </div>
+                <div class="rule-fields" id="ruleFields"></div>
+                <div class="rule-form-footer">
+                  <span class="rule-form-note">未选择的范围按全部处理</span>
+                  <button class="primary-button" id="ruleSubmit" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>
+                    执行规则
+                  </button>
+                </div>
+              </form>
+            </section>
+            <div class="chat-scroll" id="chatScroll" role="log" aria-live="polite" aria-relevant="additions" tabindex="-1">
+              <div class="welcome-state" id="welcomeState">
+                <div class="welcome-brand-avatar" aria-hidden="true">
+                  <img src="/static/assets/royal-tiger/tiger-avatar.jpg" width="48" height="48" alt="" />
+                </div>
+                <h1>把取数问题交给皇家小虎</h1>
+              </div>
+              <div class="message-list" id="messageList"></div>
+            </div>
+
+            <div class="composer-area">
+              <form class="composer" id="composerForm">
+                <fieldset class="composer-mode" aria-label="请求类型">
+                  <legend class="sr-only">请求类型</legend>
+                  <label><input type="radio" name="composerMode" value="query" checked /><span>问数</span></label>
+                  <label><input type="radio" name="composerMode" value="meaning" /><span>调整口径</span></label>
+                </fieldset>
+                <label class="sr-only" for="questionInput">输入取数问题</label>
+                <textarea id="questionInput" maxlength="4000" placeholder="描述你要查询的指标、范围和时间…" autocomplete="off"></textarea>
+                <input id="conversionFile" type="file" accept=".json,application/json" hidden />
+                <p id="conversionInputStatus" class="conversion-input-status" role="status" hidden></p>
+                <input id="proposalFile" type="file" accept=".json,application/json" hidden />
+                <p id="proposalInputStatus" class="conversion-input-status" role="status" hidden></p>
+                <div class="composer-toolbar">
+                  <div class="composer-tools">
+                    <button class="icon-button" id="conversionUpload" type="button" title="提交查询转换材料" aria-label="提交查询转换材料"><svg class="icon" aria-hidden="true"><use href="#icon-plus" /></svg></button>
+                    <button class="icon-button" id="proposalUpload" type="button" title="评估口径变更材料" aria-label="评估口径变更材料"><svg class="icon" aria-hidden="true"><use href="#icon-book" /></svg></button>
+                    <span class="composer-note"><svg class="icon lock-glyph" aria-hidden="true"><use href="#icon-lock" /></svg>受控执行</span>
+                  </div>
+                  <div class="composer-actions">
+                    <span class="char-count" id="charCount">0 / 4000</span>
+                    <button class="send-button composer-stop-button" id="stopButton" type="button" title="停止查询" aria-label="停止查询" hidden>
+                      <svg class="icon" aria-hidden="true"><use href="#icon-close" /></svg>
+                    </button>
+                    <button class="send-button" id="sendButton" type="submit" title="提交取数问题" aria-label="提交取数问题">
+                      <svg class="icon" aria-hidden="true"><use href="#icon-send" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <aside class="inspector" id="inspector" aria-label="执行过程">
+            <div class="inspector-header">
+              <div>
+                <span class="eyebrow">RUN STATUS</span>
+                <h2>执行过程</h2>
+              </div>
+              <button class="icon-button subtle mobile-only" id="inspectorClose" type="button" title="关闭执行过程" aria-label="关闭执行过程">
+                <svg class="icon" aria-hidden="true"><use href="#icon-panel" /></svg>
+              </button>
+            </div>
+            <div class="inspector-empty" id="inspectorEmpty">
+              <div class="empty-line"></div>
+              <p>等待执行</p>
+            </div>
+            <div class="inspector-content" id="inspectorContent" hidden>
+              <div class="trace-status"><span class="trace-check"><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg></span><span id="traceStatusText">等待执行</span></div>
+              <dl class="trace-list">
+                <div><dt>数据源</dt><dd><svg class="icon" aria-hidden="true"><use href="#icon-database" /></svg><span id="traceSource">Doris（只读）</span></dd></div>
+                <div><dt>上下文</dt><dd id="traceContext">-</dd></div>
+                <div><dt>历史压缩</dt><dd id="traceCompression">-</dd></div>
+                <div><dt>耗时</dt><dd><svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg><span id="traceElapsed">-</span></dd></div>
+                <div><dt>结果状态</dt><dd id="traceOutcome">-</dd></div>
+              </dl>
+              <div class="inspector-divider"></div>
+              <div class="process-heading">本次执行阶段</div>
+              <ol class="process-list" id="traceProcess"></ol>
+            </div>
+            <div class="inspector-footer"><span class="read-only-mark"><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>只读查询</span><span>v0.1</span></div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <dialog class="definition-dialog" id="definitionDialog" aria-labelledby="definitionTitle">
+      <form class="definition-form" id="definitionForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">KNOWLEDGE INBOX</span>
+            <h2 id="definitionTitle">提交新口径</h2>
+          </div>
+          <button class="icon-button subtle" id="definitionClose" type="button" title="关闭" aria-label="关闭">
+            <svg class="icon" aria-hidden="true"><use href="#icon-close" /></svg>
+          </button>
+        </div>
+        <p class="dialog-intro">审核状态：待审核</p>
+        <div class="form-grid">
+          <label class="field"><span>口径名称 <b>*</b></span><input id="metricNameInput" name="metric_name" maxlength="120" required autocomplete="off" /></label>
+          <label class="field"><span>业务定义 <b>*</b></span><textarea id="metricDefinitionInput" name="business_definition" maxlength="2000" required></textarea></label>
+          <label class="field"><span>统计范围与粒度</span><textarea id="metricScopeInput" name="scope_and_grain" maxlength="1000" placeholder="例如：货主、仓库、SKU；时间按自然日"></textarea></label>
+          <label class="field"><span>单位与时间窗口</span><input id="metricUnitInput" name="unit_and_window" maxlength="500" placeholder="例如：箱；按 Asia/Shanghai 昨日" autocomplete="off" /></label>
+          <label class="field"><span>样例问题</span><textarea id="metricExampleInput" name="example_question" maxlength="1000" placeholder="业务人员会怎样描述这个需求"></textarea></label>
+          <label class="field"><span>补充说明</span><textarea id="metricNotesInput" name="notes" maxlength="1000"></textarea></label>
+        </div>
+        <div class="form-footer">
+          <span class="form-privacy"><svg class="icon" aria-hidden="true"><use href="#icon-lock" /></svg>仅提交给口径审核，不回显到会话</span>
+          <div class="form-actions">
+            <button class="secondary-button" id="definitionCancel" type="button">取消</button>
+            <button class="primary-button" id="definitionSubmit" type="submit"><svg class="icon" aria-hidden="true"><use href="#icon-book" /></svg>提交审核</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="definition-dialog report-dialog" id="reportDialog" aria-labelledby="reportTitle">
+      <form class="definition-form" id="reportForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">REPORT STUDIO</span>
+            <h2 id="reportTitle">生成数据报告</h2>
+          </div>
+          <button class="icon-button subtle" id="reportClose" type="button" title="关闭" aria-label="关闭">
+            <svg class="icon" aria-hidden="true"><use href="#icon-close" /></svg>
+          </button>
+        </div>
+        <div class="form-grid report-form-grid">
+          <label class="field report-source-field">
+            <span>报告数据来源 <b>*</b></span>
+            <select id="reportSourceSelect" name="report_source" required></select>
+          </label>
+          <p class="report-source-empty" id="reportSourceEmpty" hidden>暂无可用查询结果。</p>
+          <label class="field">
+            <span>报告标题</span>
+            <input id="reportTitleInput" name="report_title" maxlength="160" placeholder="例如：昨日销售出库分析…" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>阅读对象</span>
+            <input id="reportAudienceInput" name="report_audience" maxlength="120" value="供应链业务" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>报告要求（选填）</span>
+            <textarea id="reportInstructionsInput" name="report_instructions" maxlength="2000" autocomplete="off" placeholder="例如：突出异常仓库、给出业务结论和后续建议…"></textarea>
+          </label>
+        </div>
+        <p class="report-dialog-status" id="reportDialogStatus" role="status" aria-live="polite" hidden></p>
+        <div class="report-dialog-downloads" id="reportDialogDownloads" role="group" aria-label="报告下载" hidden></div>
+        <div class="form-footer">
+          <span class="form-privacy"><svg class="icon" aria-hidden="true"><use href="#icon-lock" /></svg>只使用已确认的实时查询结果</span>
+          <div class="form-actions">
+            <button class="secondary-button" id="reportCancel" type="button">取消</button>
+            <button class="primary-button" id="reportQueryButton" type="button" hidden>去查询数据</button>
+            <button class="primary-button" id="reportSubmit" type="submit"><svg class="icon" aria-hidden="true"><use href="#icon-chart" /></svg>生成报告</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="definition-dialog feedback-dialog" id="queryFeedbackDialog" aria-labelledby="queryFeedbackTitle">
+      <form class="definition-form query-feedback-form" id="queryFeedbackForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">ANSWER REVIEW</span>
+            <h2 id="queryFeedbackTitle">这次需要优化什么</h2>
+          </div>
+          <button class="icon-button subtle" id="queryFeedbackClose" type="button" title="关闭" aria-label="关闭">
+            <svg class="icon" aria-hidden="true"><use href="#icon-close" /></svg>
+          </button>
+        </div>
+        <fieldset class="feedback-issue-fieldset">
+          <legend>选择主要问题</legend>
+          <div class="feedback-choice-grid">
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="definition" required /><span>业务口径不对</span></label>
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="date_window" /><span>日期或时间窗口不对</span></label>
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="scope" /><span>仓库、SKU 或范围不对</span></label>
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="unit_grain" /><span>单位或结果粒度不对</span></label>
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="missing_result" /><span>结果缺失</span></label>
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="execution_failure" /><span>执行失败或超时</span></label>
+            <label class="choice-option"><input type="radio" name="query_feedback_issue" value="other" /><span>其他问题</span></label>
+          </div>
+        </fieldset>
+        <label class="field feedback-note-field"><span>补充说明（选填）</span><textarea id="queryFeedbackNote" maxlength="1200" placeholder="可补充你期望的口径或结果"></textarea></label>
+        <div class="form-footer">
+          <span class="form-privacy"><svg class="icon" aria-hidden="true"><use href="#icon-lock" /></svg>仅进入候选知识，等待审核</span>
+          <div class="form-actions">
+            <button class="secondary-button" id="queryFeedbackCancel" type="button">取消</button>
+            <button class="primary-button" id="queryFeedbackSubmit" type="submit"><svg class="icon" aria-hidden="true"><use href="#icon-message-square" /></svg>提交问题</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="definition-dialog learning-dialog" id="learningDialog" aria-labelledby="learningTitle">
+      <section class="definition-form learning-summary-panel">
+        <div class="dialog-header">
+          <div>
+            <span class="eyebrow">LEARNING SUMMARY</span>
+            <h2 id="learningTitle">测试学习总结</h2>
+          </div>
+          <button class="icon-button subtle" id="learningClose" type="button" title="关闭" aria-label="关闭">
+            <svg class="icon" aria-hidden="true"><use href="#icon-close" /></svg>
+          </button>
+        </div>
+        <div class="learning-summary" id="learningSummary" aria-live="polite">
+          <div class="learning-loading">正在汇总测试记录…</div>
+        </div>
+        <div class="learning-policy"><svg class="icon" aria-hidden="true"><use href="#icon-lock" /></svg><span>学习内容只形成待审核候选，不会自动修改正式指标口径。</span></div>
+      </section>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="mobile-backdrop" id="mobileBackdrop"></div>
+    <script src="/static/proposal-review.js?v=20260911-interpretation-1" defer></script>
+    <script src="/static/interpretation.js?v=20260911-interpretation-1" defer></script>
+    <script src="/static/detail-export.js?v=20260915-1" defer></script>
+    <script src="/static/table-export.js?v=20260923-two-decimals-1" defer></script>
+    <script src="/static/vendor/markdown-it-14.1.0/markdown-it.min.js" defer></script>
+    <script src="/static/app.js?v=20260924-report-entry-2" defer></script>
+  </body>
+</html>

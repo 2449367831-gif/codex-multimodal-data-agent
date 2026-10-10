@@ -1,0 +1,26 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.sys_enum
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: business_enum_dimension
+business_key: [parent_code_, code_]
+grain: one enum label per parent enum and code after identical-value deduplication
+required_deduplication: true
+fields:
+  code_: {type: string, role: enum_code}
+  parent_code_: {type: string, role: enum_parent}
+  name_: {type: string, role: enum_label, nullable: true}
+  _fdl_marked_deleted: {type: string, role: logical_delete, nullable: true}
+join_to:
+  table: ywzt_ods.master_store
+  "on": TRIM(sys_enum.code_) = TRIM(master_store.price_group) AND TRIM(sys_enum.parent_code_) = '<requested_parent_enum>'
+  cardinality: many_to_one_after_parent_code_and_code_deduplication
+join_rules:
+  - Always constrain parent_code_ when translating a business enum.
+  - Deduplicate identical labels within the requested parent/code pair before joining.
+  - Conflicting labels for the same parent/code must be reported or block the result; never select MAX(name_).
+  - A missing enum label preserves the source code and must not remove the fact row.
+metadata_sync:
+  mode: compare_only
+  semantic_changes_require_approval: true

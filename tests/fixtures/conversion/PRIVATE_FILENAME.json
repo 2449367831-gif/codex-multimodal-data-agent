@@ -1,0 +1,1 @@
+{"sql":"SELECT :quantity AS value, :note AS label","bindings":{"quantity":0.1234567890123456789,"note":"PRIVATE_INPUT"},"table_mapping":{}}

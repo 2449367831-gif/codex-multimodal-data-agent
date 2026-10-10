@@ -1,0 +1,64 @@
+contract_schema_version: 1.0.0
+id: inventory.so07_cloud_warehouse
+version: 1.0.0
+status: candidate
+business_concept: inventory.finished_goods_quantity
+variant: current_available_plus_transit_cloud_warehouse
+display_name: 社团云仓当前成品库存
+aliases: [社团云仓库存, SO07云仓库存, 社团云仓可用库存, 社团云仓成品库存]
+business_definition: Current finished-goods inventory for active cloud warehouses, using the approved available_quantity plus in_transit_quantity basis. This is warehouse inventory and is not restricted to SKU lines that have an SO07 order.
+nearby_metrics_not_equivalent: [sales_order.so07_cloud_warehouse, sales.so07_cloud_warehouse_outbound, inventory.finished_goods_snapshot, inventory.available_realtime]
+applicability:
+  applicable_when:
+    - The user asks for current inventory in social-commerce cloud warehouses.
+    - The user asks for available, in-transit or total finished-goods inventory by cloud warehouse or SKU.
+  not_applicable_when:
+    - The user asks for a historical inventory snapshot, SO07 order quantity or actual outbound quantity.
+    - The requested inventory basis is gross, locked, frozen or occupied inventory only.
+  required_signals: [cloud_warehouse, current_inventory, finished_goods]
+  negative_signals: [historical_snapshot, order_request, actual_outbound, receipt_quantity]
+clarification:
+  ambiguity_group: so07_cloud_inventory_basis
+  question: 需要查询社团云仓当前可用成品库存加在途，还是库存明细中的在库、占用、锁定或冻结数量？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + cloud warehouse display name + finished-goods SKU, then aggregate to the requested grain
+unit: EA
+time_window:
+  kind: current_state
+  freshness_field: information_schema.tables.update_time
+  timezone: Asia/Shanghai
+formula: SUM(available_quantity + in_transit_quantity)
+sources:
+  required: [ywzt_ods.sku_inventory, ywzt_ods.master_sku, ywzt_ods.master_wms, information_schema.tables]
+parameters:
+  cargo_owner: {required: false, default: ALL, field: i.owner}
+  warehouse_scope: {required: false, default: ALL_CLOUD_WAREHOUSES, field: i.wms_desc}
+  sku_scope: {required: false, default: ALL_FINISHED_GOODS, field: i.sku_code}
+  output_grain: {required: true, type: enum, examples: [total, warehouse, sku, warehouse_sku]}
+filters:
+  finished_goods: "Join a deduplicated master_sku set and require TRIM(sku_group) = '50'."
+  cloud_warehouse: "Join i.owner = m.cargo_owner_id and normalized i.wms_desc = normalized m.wms_desc, require m.wms_type = '12' and one logically valid mapping (m.status = '0' or NULL). Preserve wms_status for diagnostics; do not filter to one wms_status value without an approved rule."
+  inventory_basis: "Use sku_inventory.available_quantity + in_transit_quantity. Do not substitute scm_warehous_manage.actual_quantity or source-derived available_days."
+  name_mapping: "Warehouse-name mapping is a controlled bridge only because sku_inventory exposes wms_desc. Missing or multiple active master_wms matches block the cloud result; do not guess from Chinese names."
+  scope_defaults: "Omitted owner, warehouse and SKU scopes are ALL within active cloud warehouses and finished goods."
+  reconciliation:
+    - Aggregate raw inventory first by owner + warehouse display name + SKU before master joins.
+    - Cloud-filtered totals must equal the independent pre-join inventory control.
+    - Master join must not change inventory quantities or row counts at the reporting grain.
+    - Missing, ambiguous or stale warehouse mappings and missing SKU classification are explicit anomalies.
+    - Current inventory has no historical event date; report source freshness separately.
+required_validations: [single_statement_and_read_only, metric_variant_resolved, source_freshness, control_total_reconciliation, inventory_key_aggregation, inventory_net_nonnegative, inventory_name_uniqueness, master_data_freshness]
+execution: {mode: composite}
+depends_on: [inventory.finished_goods_realtime]
+dependency_versions: {inventory.finished_goods_realtime: 2.0.0}
+notes: Candidate coverage rule. “社团云仓” is a warehouse scope, not an SO07-only SKU scope. The report must not remove cloud inventory merely because the SKU has no SO07 order.
+updated_at: "2026-09-23"

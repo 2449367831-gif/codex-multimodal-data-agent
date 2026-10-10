@@ -1,0 +1,147 @@
+contract_schema_version: 1.0.0
+id: inventory.turnover_finished_goods_snapshot
+version: 2.0.0
+status: active
+business_concept: inventory.turnover_days
+variant: period_end_finished_goods_over_average_actual_sales
+display_name: 区间末成品库存周转天数
+aliases:
+- 区间末成品库存周转
+- 历史成品库存周转
+- 上月库存周转
+- 历史库存周转
+- 库存周转天数
+- 库存周转
+- 成品库存周转
+business_definition: Historical finished-goods stock at the exact period-end snapshot
+  divided by the approved hybrid sales.business_quantity daily average over the same
+  scope.
+nearby_metrics_not_equivalent:
+- inventory.turnover_finished_goods_realtime
+- inventory.turnover_mtd_realtime
+- inventory.turnover_order_request
+- inventory.turnover_average_of_ratios
+applicability:
+  applicable_when:
+  - User explicitly asks for historical finished-goods stock snapshot turnover.
+  not_applicable_when:
+  - User requests current inventory.
+  required_signals:
+  - turnover_days
+  - period_end_finished_goods_snapshot
+  - average_actual_finished_goods_sales
+  negative_signals:
+  - current_inventory
+clarification:
+  ambiguity_group: turnover_inventory_point
+  question: 仅当当前要求明确与已批准周转分子或销售分母冲突时确认差异。
+validity:
+  effective_from: '2026-10-10T00:00:00+08:00'
+  effective_to: null
+  supersedes:
+  - inventory.turnover_finished_goods_snapshot@1.0.0
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-10-10T00:00:00+08:00'
+grain: requested reporting grain after independently aggregating both components under
+  one shared scope capsule
+unit: days
+time_window:
+  inventory_point:
+    kind: exact_snapshot
+    derivation: snapshot_date equals end_exclusive minus one complete natural day
+  sales_interval:
+    interval: '[start_inclusive, end_exclusive)'
+    day_count: DATEDIFF(end_exclusive, start_inclusive)
+    boundary_policy: complete natural days only
+    timezone: Asia/Shanghai
+formula: SUM(period_end_stock_ea) / (SUM(approved_hybrid_sales_ea) / complete_natural_days)
+depends_on:
+- inventory.finished_goods_snapshot
+- sales.business_quantity
+dependency_versions:
+  inventory.finished_goods_snapshot: 1.0.0
+  sales.business_quantity: 1.0.0
+sources:
+  required:
+  - ywzt_ods.master_sku
+  - ywzt_ods.master_store
+  - ywzt_ods.master_wms
+  - ywzt_ods.scm_sales_order_detail
+  - ywzt_ods.scm_sales_order_header
+  - ywzt_ods.scm_sales_shipment_detail
+  - ywzt_ods.scm_sales_shipment_header
+  - ywzt_ods.scm_warehous_manage_backups
+parameters:
+  start_inclusive:
+    required: true
+    type: datetime
+  end_exclusive:
+    required: true
+    type: datetime
+  snapshot_date:
+    required: true
+    type: date
+    derivation: end_exclusive_minus_one_day
+  cargo_owner:
+    required: false
+    default: ALL
+    component_fields:
+      inventory: cargo_owner_id
+      sales: h.company_code
+  sku_scope:
+    required: false
+    default: ALL_WITHIN_FINISHED_GOODS
+    component_fields:
+      inventory: sku_code
+      sales: d.sku_code
+  warehouse_scope:
+    required: false
+    default: ALL
+    component_fields:
+      inventory: wms_code
+      sales: h.facility_code
+  output_grain:
+    required: true
+    examples:
+    - total
+    - warehouse
+    - sku
+filters:
+  fixed_sku_population: Both components join one deduplicated master_sku key set and
+    require TRIM(sku_group) = '50'.
+  inventory_basis: SUM(in_stock_quantity) from the exact snapshot_date; no current-state
+    or nearest-date substitution.
+  outbound_basis: 'sales.business_quantity@1.0.0: noncommunity ship_qty + community
+    request_qty, created minus one day; d.status=0.'
+  component_scope_invariant:
+    dimensions:
+    - cargo_owner
+    - sku_scope
+    - warehouse_scope
+    - unit
+    - output_grain
+    rule: Resolve one scope capsule and apply it independently to both components
+      before calculating the ratio.
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- business_date_semantics
+- metric_variant_resolved
+- metric_validation_isolation
+- component_scope_equivalence
+- snapshot_date_exists
+- inventory_net_nonnegative
+- shipment_status_and_deletion
+- shipment_header_non_multiplication
+- sales_order_non_multiplication
+- complete_natural_days
+- turnover_ratio_aggregation
+execution:
+  mode: composite
+notes: User approved new sales SQL for both sales and turnover; physical-only old
+  sales must not override the denominator.
+updated_at: '2026-09-01'

@@ -1,0 +1,46 @@
+schema_version: 1.0.0
+manifest_schema: schemas/release-manifest.schema.json
+
+required_gates:
+  - json_schema_validation
+  - cross_reference_validation
+  - sql_static_read_only_validation
+  - golden_question_schema_validation
+  - golden_question_runtime_regression
+  - protected_path_impact_review
+  - business_approval_for_semantic_changes
+
+versioning:
+  model: semver
+  patch: Documentation, observations, or non-semantic corrections only.
+  minor: Add a compatible metric variant, alias, source field, validation, or golden case.
+  major: Change an existing metric formula, grain, unit, source, date meaning, default scope, or remove a routable contract.
+
+publication:
+  candidate_is_not_routable: true
+  release_manifest_is_immutable: true
+  manifest_integrity: sha256_of_exact_contract_source_template_rule_and_golden_files
+  doris_runtime_trust_anchor: AGENT_TRUSTED_RELEASE_SHA256_from_deployment_secret
+  activation: atomic_current_release_pointer
+  runtime_must_record: [release_id, metric_id, metric_version, source_versions, profile_id]
+  retain_superseded_releases: true
+
+rollback:
+  mechanism: atomically_restore_previous_release_pointer
+  never_mutate_historical_audit_records: true
+  require_incident_note: true
+
+approval:
+  metadata_observation: technical_review_optional
+  routing_semantics: business_owner_required
+  metric_semantics: business_owner_required
+  source_semantics: business_owner_and_data_owner_required
+
+production_eligibility:
+  metric_status: active
+  metric_approval_state: approved
+  release_status: released
+  exact_version_must_be_in_manifest: true
+  exact_manifest_digest_must_match_external_trust_anchor: true
+  verified_template_behavior: candidate_only
+  rule: A verified template or a successful static check is not evidence of business approval or live reconciliation.

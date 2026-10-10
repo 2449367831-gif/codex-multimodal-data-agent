@@ -1,0 +1,60 @@
+async (page) => {
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.setViewportSize({width:1440,height:1000});
+  const submit=async(text)=>{
+    await page.getByRole('textbox',{name:'输入取数问题'}).fill(text);
+    await page.getByRole('button',{name:'提交取数问题'}).click();
+  };
+  await submit('核对测试订单的实发、退货和净销售数量');
+  await page.waitForSelector('.table-column-net_sales_quantity');
+  if(await page.locator('.business-table').count()!==2) throw new Error('Missing quantity table pair');
+  const first=await page.locator('.business-table').first().innerText();
+  if(!first.includes('TEST-EMPTY')||!first.includes('000012345678901234567890')) throw new Error('Lost empty order or exact code');
+  const quantity=page.locator('.business-table').nth(1);
+  if(await quantity.locator('td.table-column-net_sales_quantity').innerText()!=='-2') throw new Error('Lost signed net quantity');
+  if(!await quantity.locator('td.table-column-sku_code').evaluate(el=>getComputedStyle(el).whiteSpace==='nowrap')) throw new Error('SKU identity wraps into fragments');
+  const layout=async()=>{
+    await page.waitForFunction(()=>!document.getAnimations().some(a=>a.playState==='running'));
+    await page.waitForFunction(()=>[...document.images].filter(i=>i.getBoundingClientRect().width).every(i=>i.complete&&i.naturalWidth));
+    if(!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth &&
+      [...document.querySelectorAll('.result-page-controls button,.result-page-controls input')].every(el=>el.getBoundingClientRect().height>=44))) throw new Error('Layout overflow or small paging controls');
+  };
+  await layout();
+  await page.screenshot({path:'output/playwright/order-return-desktop.png'});
+  await page.setViewportSize({width:375,height:812});
+  await layout();
+  await page.evaluate(()=>{const el=document.querySelectorAll('.business-table-scroll')[1]; el.scrollLeft=el.scrollWidth;});
+  await page.screenshot({path:'output/playwright/order-return-mobile.png'});
+  await page.getByRole('button',{name:'下一页',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('td.table-column-sku_code')?.textContent.includes('TEST-SKU-002'));
+  if(await quantity.locator('td.table-column-net_sales_quantity').innerText()!=='暂无') throw new Error('Missing quantity became zero');
+  if(await quantity.locator('td.table-column-returned_quantity').innerText()!=='0') throw new Error('Zero became missing');
+  if(await page.locator('.business-table').first().innerText()!==first) throw new Error('Quantity paging changed order cohort');
+  await page.reload();
+  await page.waitForSelector('td.table-column-net_sales_quantity');
+  if(await page.locator('.business-table').count()!==2 || await page.locator('td.table-column-net_sales_quantity').innerText()!=='暂无') throw new Error('Refresh lost current page');
+  await page.setViewportSize({width:812,height:375});
+  await layout();
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('#themeToggle').click();
+  await layout();
+  await page.screenshot({path:'output/playwright/order-return-dark.png'});
+  await page.evaluate(()=>{window.returnPageExpired=true;});
+  await page.getByRole('button',{name:'上一页',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.result-page-status').textContent.includes('过期'));
+  if(await page.locator('td.table-column-net_sales_quantity').innerText()!=='暂无') throw new Error('Expired request discarded visible page');
+  await page.evaluate(()=>{window.returnInvalidTable=true;});
+  await submit('核对另一组测试订单');
+  await page.waitForFunction(()=>document.querySelectorAll('.execution-message').length===2 && !document.querySelector('.execution-message:last-child').textContent.includes('正在处理请求'));
+  if(await page.locator('.execution-message').last().locator('.business-table').count()) throw new Error('Invalid count allowed partial tables');
+  await page.evaluate(()=>{window.returnInvalidTable=false;window.returnReferenceConflict=true;});
+  await submit('核对关联不一致的测试退货');
+  const conflict=page.getByRole('alert').filter({hasText:'核对关联不一致的测试退货'});
+  await conflict.waitFor();
+  if(await conflict.locator('.business-table').count()) throw new Error('Reference conflict allowed partial tables');
+  if(!await conflict.innerText().then(text=>text.includes('未完成'))) throw new Error('Reference conflict displayed success');
+  if(errors.length) throw new Error(errors.join('\n'));
+  return {twoTables:true,signed:true,missingVersusZero:true,ordersWithoutDetail:true,independentPaging:true,refresh:true,expired:true,invalidWholeResult:true,referenceConflict:true,desktop:true,mobile:true,landscape:true,dark:true};
+}

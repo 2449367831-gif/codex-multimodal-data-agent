@@ -1,0 +1,98 @@
+contract_schema_version: 1.0.0
+id: inventory.current_components
+version: 1.0.0
+status: active
+business_concept: inventory.quantity_components
+variant: user_sql_20261010
+applicability:
+  applicable_when: [Current inventory, available stock, occupation or transit quantities are requested.]
+  not_applicable_when: [Historical inventory snapshots or actual sales outbound quantities are requested.]
+clarification:
+  ambiguity_group: inventory_quantity_basis
+  question: 用户已确认当前库存组件公式；只有明确要求其他库存口径时才确认差异。
+display_name: 当前库存组件（用户确认SQL）
+aliases:
+- 库存组件
+- 在库数量
+- 在途数量
+- 采购在途
+- 调拨在途
+- 库存分配数量
+business_definition: 'At owner + warehouse code + SKU grain: available = GREATEST(in_stock
+  - sales_occupation - transfer_occupation - (grouped stock_lock when nonzero, otherwise
+  grouped freeze), 0); in_transit = full purchase request quantity + active transfer
+  allocation quantity; total = available + in_transit.'
+validity:
+  effective_from: '2026-10-10T00:00:00+08:00'
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: '2026-10-10T00:00:00+08:00'
+grain: cargo_owner_id + wms_code + sku_code
+unit: EA
+time_window:
+  kind: current_state
+  timezone: Asia/Shanghai
+  occupation: strict rolling 60 days using NOW(); not the report end date
+formula: 'At owner + warehouse code + SKU grain: available = GREATEST(in_stock - sales_occupation
+  - transfer_occupation - (grouped stock_lock when nonzero, otherwise grouped freeze),
+  0); in_transit = full purchase request quantity + active transfer allocation quantity;
+  total = available + in_transit.'
+sources:
+  required:
+  - ywzt_ods.scm_warehous_manage
+  - ywzt_ods.scm_warehous_occupy
+  - ywzt_ods.scm_po_header
+  - ywzt_ods.scm_po_detail
+  - ywzt_ods.scm_transfer_order_header
+  - ywzt_ods.scm_transfer_order_detail
+  - ywzt_ods.scm_sales_shipment_allocate_wms
+  - ywzt_ods.scm_stock_history
+  - ywzt_ods.master_wms
+parameters:
+  cargo_owner:
+    required: false
+    default: ALL
+  warehouse_scope:
+    required: false
+    default: ALL
+  sku_scope:
+    required: false
+    default: ALL
+filters:
+  stock_quality: inventory_status = 'ZP' OR inventory_status IS NULL OR inventory_status
+    = ''; no extra logical-status predicate is implied
+  occupation: created_date > NOW() - INTERVAL 60 DAY AND status <> 1; NULL status
+    excluded; split freeze_quantity by IFNULL(pre_order_code,'') LIKE 'HJXH-TH%'
+  lock: Parse stock_lock using the supplied numeric REGEXP and DECIMAL(18,4), otherwise
+    zero; choose grouped stock_lock or grouped freeze, never both
+  purchase_transit: Full request_quantity for order_status 12/13/14/15/16 and detail
+    status=0; do not subtract receipts
+  transfer_transit: allocate_qty by detail cargo_owner_id + header receive_wms + SKU;
+    header status 13/14/15 and allocation _fdl_marked_deleted <> true; this is transit,
+    not actual sales
+  population: Union keys from active purchases (10-16), all current stock, stock history
+    and receiving transfer orders (13-15); stock history contributes keys only
+  scope: Omitted owner, warehouse and SKU scope ALL. Narrow output composite keys,
+    not the sending warehouse on transfer allocation.
+  source_empty: An empty base stock source is unavailable evidence; never publish
+    an all-zero stock/turnover report.
+  master_data: Validate warehouse-code and SKU-code uniqueness before dimension joins;
+    no MAX to hide conflicts.
+required_validations:
+- single_statement_and_read_only
+- source_freshness
+- inventory_key_aggregation
+execution:
+  mode: sql_template
+  template: sql_templates/inventory.current_components.sql
+template: sql_templates/inventory.current_components.sql
+notes: User explicitly replaced the current-inventory basis on 2026-10-10. Reference
+  sales columns using allocate_qty, JYCK and 700/900 are outside this inventory adoption;
+  actual sales and turnover denominator remain the released ship_qty basis. Preserve
+  raw precision; display two decimals.
+updated_at: '2026-10-10'

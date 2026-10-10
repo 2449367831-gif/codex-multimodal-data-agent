@@ -1,0 +1,60 @@
+contract_schema_version: 1.0.0
+id: sales_order.return_components
+version: 1.0.0
+status: candidate
+business_concept: sales_order.return_quantity
+variant: independent_owner_order_sku_returns
+display_name: Return components by owner, sales order and SKU
+aliases: [Return components]
+business_definition: Aggregate every eligible return line across every related return document before any sales or amount join. This is an internal candidate component for T13/T14 and integrated reporting, not a published net-sales or refund answer.
+nearby_metrics_not_equivalent: [sales.outbound_actual, sales_order.so07_detail, actual_refund, proportional_payment_deduction]
+applicability:
+  applicable_when: [Independent order-SKU return components are required by an explicitly selected return-analysis variant.]
+  not_applicable_when: [A WMS actual-outbound answer, financial refund amount or return-creation-date cohort is requested.]
+clarification:
+  ambiguity_group: return_amount_basis
+  question: Distinguish proportional payment deductions from document-level actual refunds before choosing amount output.
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + sales_order_code + sku_code; retain document-SKU evidence internally to reconcile distinct return documents across SKUs
+unit: Raw integer fulfill_qty; no EA, box or weight conversion and no mixed-SKU physical-unit interpretation is approved. Internal totals are completeness controls only.
+time_window:
+  mode: all_related_returns
+  timezone: Asia/Shanghai
+  rule: No implicit return-date filter. A sales-order cohort must be selected independently on its own date axis; applying a sales-month cutoff to return creation would lose related returns.
+  freshness_field: updated_date
+formula: SUM(return_detail.fulfill_qty), independently aggregated by owner + return document + SKU and then owner + referenced sales order + SKU
+sources:
+  required: [ywzt_ods.scm_return_order_header, ywzt_ods.scm_return_order_detail]
+parameters:
+  owner_codes: {required: false, default: ALL}
+  order_codes: {required: false, default: ALL}
+  sku_codes: {required: false, default: ALL}
+  order_keys: {required: false, default: null, description: Exact owner/order pairs; null means unrestricted within other scopes and an empty list means NONE. Never use separate owner and order lists as a Cartesian replacement.}
+filters:
+  detail_status: Only return detail status 0. This condition never filters sales rows or substitutes shipment status.
+  header_status: Historical return branch has no return-header status restriction; preserve that distinction pending publication review, do not claim these are settled refunds.
+  logical_delete: Candidate explicitly excludes true ETL deletion on each table, requires false on retained records, and rejects missing or malformed flags. This tightens the imported historical SQL and requires approval before publication.
+  joins: Match owner + return document; require nonblank and equal header and detail ref_order_code after the established outer-space normalization. Reject missing references and conflicting or duplicate eligible headers rather than selecting an arbitrary one.
+  reference_conflict_confirmation: On 2026-09-11 the user required both sales-order references to agree; missing references cannot prove agreement. A failure stops the entire query. Do not downgrade it to a warning, discard the conflicting line or choose one reference to produce a result. This does not authorize publication or an amount definition.
+  reference_scope: Either eligible header or eligible detail referencing the requested order cohort brings the document into consistency checking. A conflicting header outside the requested order scope must not hide a matching detail. Preserve owner, SKU, status, deletion and exact-pair cohort exclusions; an empty cohort remains NONE.
+  detail_identity: Reject duplicate eligible IDs per owner; equal quantities and equal SKU on distinct IDs are legitimate lines, not duplicates.
+  missing_header: Eligible orphan details fail quality instead of disappearing. Diagnose them within requested owner and SKU scope; explicit sales-order scope uses the detail reference only to detect the missing relationship, never to fabricate a valid header. A known logically deleted header remains excluded, not an orphan.
+  scope: Omitted owner, order and SKU are ALL every request. An explicit exact order_keys cohort intersects these scopes and also constrains orphan diagnosis. No warehouse, channel or finished-goods scope is inferred by this component.
+  quantities: Missing quantities fail quality; zero and negative values remain, with row-level negative counts preserved before aggregation.
+  counts: Count documents on owner + return document across the complete result, not by summing SKU document counts. Count physical lines separately.
+  freshness: Maximum detail source update and missing timestamp counts must reconcile; they do not prove ETL completeness.
+  reconciliation: Pre-join detail totals, line counts, negative counts, missing timestamp counts, distinct document identities and final group completeness must agree. Bounded exact paging and two identical complete scans are required.
+  quality_diagnosis: Internal quantity-free diagnostics distinguish missing header/detail identities, invalid deletion flags, multiple active headers, missing detail quantities, orphan details, missing orphan references and unproven reference agreement. The legacy reference_conflict_count and conflicting_detail_reference controls include blank references as well as unequal references. These categories can overlap and are not summed into business quantities. Diagnosis never changes filters or repairs source data.
+  net_sales_basis: On 2026-09-11 the user selected historical sales-order-detail ship_qty for T13/T14, not WMS shipment-detail ship_qty. That choice does not publish this candidate or change ordinary actual-outbound metrics.
+required_validations: [single_statement_and_read_only, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: Independent return facts; candidate sales cohort and net composition now exist separately. Amount-choice review, public routing/tables, full independent live reconciliation and publication remain required.
+updated_at: '2026-09-11'

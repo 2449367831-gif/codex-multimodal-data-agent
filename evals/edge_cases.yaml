@@ -1,0 +1,31 @@
+suite_id: edge_cases
+version: 1.0.0
+status: active
+cases:
+  - id: no_data
+    expected_state: empty_result
+    rule: 查询成功但没有数据，不表述为数据库绝对不存在
+  - id: model_failure
+    expected_state: query_failed
+    rule: 不输出估算值或历史结果
+  - id: backend_unavailable
+    expected_state: query_unavailable
+    rule: 不将健康检查当作业务结果
+  - id: truncated
+    expected_state: truncated_result
+    rule: 不声明结果完整
+  - id: ambiguous_quantity
+    expected_state: clarification_required
+    rule: 一次性返回全部可选口径
+  - id: duplicate_sales_order_returns
+    rule: 一个销售订单对应多个退货单时，退货单按 return_order_code 分别计数
+  - id: join_multiplication
+    rule: 一对多事实先聚合再关联，并对账关联前后数量
+  - id: so07_cloud_order_is_not_cloud_total
+    rule: SO07订单必须使用订单头order_type=SO07；不能用全部云仓订单或ref_order_type替代
+  - id: so07_cloud_outbound_quantity_basis
+    rule: SO07云仓实际出库使用出库明细ship_qty；request_qty和allocate_qty不能替代
+  - id: cloud_warehouse_identity
+    rule: 云仓按master_wms.wms_type=12并使用货主加仓库编码关联，不能按仓库名称猜测
+  - id: cloud_inbound_type
+    rule: 社团云仓采购入库沿用warehous_type=10，不用采购单号非空静默替代

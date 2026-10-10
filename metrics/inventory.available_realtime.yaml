@@ -1,0 +1,59 @@
+contract_schema_version: 1.0.0
+id: inventory.available_realtime
+version: 1.0.0
+status: verified_template
+business_concept: inventory.quantity
+variant: available_realtime
+display_name: 实时可用库存
+aliases: [实时可用库存, 当前可用库存, 现有可用库存, 可用库存]
+business_definition: Current available inventory after inventory-record deductions and valid occupation deductions. It is not historical inventory, production-date inventory, or transit inventory.
+applicability:
+  applicable_when:
+    - The user asks for current or real-time available inventory.
+    - Inventory must deduct record locks, freezes, allocations, and valid occupation.
+  not_applicable_when:
+    - The user asks for a historical date, production-date inventory, or transit inventory.
+    - The user asks for gross on-hand inventory without deductions.
+  required_signals: [current_state, available_inventory]
+  negative_signals: [historical_snapshot, production_date, transit, gross_on_hand]
+clarification:
+  ambiguity_group: inventory_quantity_basis
+  question: 您要查当前可用库存，还是指定日期的历史库存快照？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: unassigned
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + warehouse + SKU
+unit: EA
+time_window:
+  kind: current_state
+  freshness_field: stock_change_time
+formula: "GREATEST(SUM(in_stock - allot - lock - freeze + move_in) - SUM(valid_occupation_lock + valid_occupation_freeze), 0)"
+sources:
+  required:
+    - ywzt_ods.scm_warehous_manage
+  conditional:
+    - ywzt_ods.scm_warehous_occupy
+    - ywzt_ods.master_sku
+parameters:
+  cargo_owner: {required: false, default: ALL, inventory_field: cargo_owner_id}
+  sku_scope: {required: false, default: ALL, inventory_field: sku_code}
+  warehouse_scope: {required: false, default: ALL, inventory_field: wms_code}
+  occupation_lookback_days: {required: false, default: 60, type: integer}
+  output_grain: {required: true, examples: [total, warehouse, sku, warehouse_sku]}
+filters:
+  inventory_record: "status = '0'"
+  valid_occupation: "status <> '1' OR status IS NULL"
+required_validations: [single_statement_and_read_only, source_freshness, inventory_key_aggregation, available_nonnegative]
+execution:
+  mode: sql_template
+  template: sql_templates/inventory.available_realtime.sql
+template: sql_templates/inventory.available_realtime.sql
+notes: Quality status and operating-warehouse restrictions are scope choices, not global defaults.
+updated_at: "2026-08-28"

@@ -1,0 +1,52 @@
+contract_schema_version: 1.0.0
+id: sales.outbound_boxes
+version: 1.0.0
+status: active
+business_concept: sales.box_quantity
+variant: rounded_after_channel_aggregation
+display_name: 按渠道汇总后四舍五入的成品出库箱数
+aliases: [成品出库箱数, 实发箱数, 箱规换算]
+business_definition: Preserve actual shipped EA, aggregate by date, owner, warehouse, SKU and customer channel before dividing by the unique unit-40 EA-per-box specification, then round half up to zero decimal places.
+nearby_metrics_not_equivalent: [per_detail_rounded_boxes, floor_pickup_boxes, weight_conversion, order_replacement_quantity]
+applicability:
+  applicable_when: [Actual JYCK finished-goods outbound with explicit zero-decimal half-up rounding after an approved channel aggregation.]
+  not_applicable_when: [The requested channel taxonomy is unresolved or the request asks for floor, ceiling, per-line rounding or order replacement.]
+clarification:
+  ambiguity_group: outbound_box_channel
+  question: 汇总后换算箱数采用线上线下渠道，还是2C和2B履约类型？
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: approved
+  validation_level: static_contract_and_template
+  approved_by: current_project_requester
+  approved_at: "2026-09-10"
+grain: ship_date + cargo_owner + warehouse_code + sku_code + explicitly approved channel key
+unit: EA retained; specification EA per box; derived quantity boxes rounded half up
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: ROUND(SUM(ship_qty) / NULLIF(unique_unit40_ea_convert_quantity, 0), 0) at the declared grain; never SUM(ROUND(detail_qty / box_spec)).
+sources:
+  required: [ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.master_sku, ywzt_ods.master_wms, ywzt_ods.master_sku_unit, ywzt_ods.master_store]
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  channel_basis: {required: true, type: enum, examples: [customer_type]}
+filters:
+  channel: "User selected customer classification on 2026-09-10: master_store.type Z004 online, Z001 offline, other/null/unmatched other. Join by owner plus customer code; conflicting type records block output, missing classification remains with quantity impact."
+  shipment: Inherit sales.outbound_actual@2.0.0; JYCK only; master_sku.sku_group 50, no default exception SKU.
+  scope: Unmentioned owner, warehouse, SKU and channel scopes are ALL. Retain owner in grouping keys so warehouses and documents cannot cross owners.
+  unit_lookup: "TRIM(unit) = '40', grouped by TRIM(sku_code); inspect all records, not a silently selected owner or status."
+  deduplication: Identical valid box specifications collapse to one. Distinct positive values produce conflict. Null, zero and negative values are reported as invalid, not hidden to make a specification unique.
+  missing: Missing, invalid or conflicting box specification leaves box count null; preserve raw EA and a reason. Null never means zero boxes.
+  precision: Exact decimal rational arithmetic for half-up rounding avoids binary floating point and decimal-context precision loss at half-box boundaries.
+  freshness: Validate the same unit-control map on two reads. Source updated_date is not an ingestion watermark and historical effective box specifications are not known.
+  reconciliation: Raw EA group totals remain unchanged. Rounded boxes cannot reconstruct raw EA or be re-rounded at a different grain. Do not publish a complete box total if any group has a missing conversion.
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [sales.outbound_actual]
+dependency_versions: {sales.outbound_actual: 2.0.0}
+notes: T08 customer-channel taxonomy explicitly selected by the user. Current master specification is used, not an unverified historical packaging snapshot. No other metric is changed by this opt-in conversion.
+updated_at: "2026-09-10"

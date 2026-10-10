@@ -1,0 +1,79 @@
+validations:
+  source_freshness:
+    severity: blocking
+    rule: Verify the fact-date maximum covers the requested end_exclusive boundary or explicitly mark the result incomplete.
+  master_data_freshness:
+    severity: blocking
+    rule: Verify the selected master_wms updated_date maximum is present, not in the future, and within the configured freshness threshold before rendering.
+  warehouse_mapping_integrity:
+    severity: blocking
+    rule: Every node10 row is an independent center keyed by wms_code; node12/13/14 must resolve to exactly one in-scope node10 center. Mapping conflicts, invalid child parents, or unresolved non-zero detail rows block the image; center parent-field anomalies are retained as warnings.
+  exact_operating_center_scope:
+    severity: blocking
+    rule: The report must contain exactly the eight reviewed HJXH operating-center codes in the declared order; omitted, renamed, or extra center rows block image publication.
+  inventory_name_uniqueness:
+    severity: blocking
+    rule: A sku_inventory warehouse name may resolve to at most one approved master_wms code inside the profile; ambiguous or missing inventory joins block the image.
+  inventory_composite_key_uniqueness:
+    severity: blocking
+    rule: Within the selected owner, approved warehouse scope and finished-goods SKU scope, sku_inventory must have at most one row per owner + warehouse display name + SKU; any duplicate key blocks image publication before rendering.
+  control_total_reconciliation:
+    severity: blocking
+    rule: Output inventory/outbound totals and fact-row counts must equal independent SQL control totals within the declared tolerance; repeated cross-joined controls are read once, never summed by warehouse.
+  allocation_comparison:
+    severity: warning
+    rule: Allocation quantity is an auxiliary operational comparison, not the actual shipment measure. Verify reported difference equals actual minus allocation. A real source difference must be disclosed; it must not replace actual ship_qty or invalidate an otherwise reconciled actual-sales measure. Independent same-measure control totals and formula checks remain blocking.
+  single_statement_and_read_only:
+    severity: blocking
+    rule: SQL parser and executor allow only one read-only statement.
+  business_date_semantics:
+    severity: blocking
+    rule: Bind the requested business event to the metric contract's date field and use an Asia/Shanghai start-inclusive, end-exclusive interval; order-created, shipment-completed, arrival, production, and snapshot dates are not interchangeable.
+  metric_variant_resolved:
+    severity: blocking
+    rule: Select one named metric variant before query generation. Conflicting historical formulas, statuses, date fields, or quantity bases cannot be merged into a synthetic default.
+  metric_validation_isolation:
+    severity: blocking
+    rule: Run only common checks plus validations declared by the selected metric and its explicit dependencies; facts and checks from unrelated metric families are forbidden.
+  component_scope_equivalence:
+    severity: blocking
+    rule: For composite metrics, prove that owner, SKU, warehouse profile, channel, unit, and reporting grain are logically identical across components before calculating a ratio or combined measure.
+  shipment_status_and_deletion:
+    severity: blocking
+    rule: Apply the selected contract's completed statuses and logical-delete filters.
+  sales_order_non_multiplication:
+    severity: blocking
+    rule: Use EXISTS or a distinct sales-order key set; do not join raw duplicated sales-order headers into shipment aggregation.
+  dms_points_order_validity:
+    severity: blocking
+    rule: For DMS points redemption, require the latest order header to be order_type SO16, is_points_order 1, paid_status 1, non-deleted, and outside the declared cancelled/refunded status exclusions.
+  dms_points_detail_non_multiplication:
+    severity: blocking
+    rule: For DMS points redemption, first filter item_type 2 product lines because item_type 3 is a separate settlement duplicate, then resolve one latest row per sales_order_code + item_code + sku_code, and reconcile monthly sums to the independent control total.
+  shipment_header_non_multiplication:
+    severity: blocking
+    rule: Apply eligibility filters and reduce shipment header to one row per declared outbound_code business key before joining shipment detail.
+  inventory_key_aggregation:
+    severity: blocking
+    rule: Aggregate inventory and occupation independently by cargo owner, warehouse, and SKU before joining.
+  inventory_net_nonnegative:
+    severity: blocking
+    rule: The final inventory aggregate for every included warehouse must be nonnegative. Negative source facts are retained in the net sum and are never clamped or silently excluded.
+  available_nonnegative:
+    severity: blocking
+    rule: Apply GREATEST(value, 0) only after aggregate-key deductions are complete for contracts that explicitly select a nonnegative inventory basis.
+  negative_source_fact_policy:
+    severity: warning
+    rule: Count negative inventory source facts and preserve their signed contribution; allow the reviewed profile to publish with a warning only when net warehouse totals and independent controls reconcile.
+  snapshot_date_exists:
+    severity: blocking
+    rule: Requested backup date must exist; never silently substitute a nearby snapshot.
+  snapshot_period_completeness:
+    severity: blocking
+    rule: A period average requires every expected snapshot date or an explicitly approved missing-day policy; a single existing snapshot does not prove period coverage.
+  complete_natural_days:
+    severity: blocking
+    rule: Use DATEDIFF(end_exclusive, start_inclusive); return null for zero denominator.
+  turnover_ratio_aggregation:
+    severity: blocking
+    rule: Total turnover equals SUM(stock) divided by SUM(outbound)/days; never average lower-grain ratios.

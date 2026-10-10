@@ -1,0 +1,75 @@
+contract_schema_version: 1.0.0
+id: sales.so07_cloud_warehouse_outbound
+version: 1.0.0
+status: candidate
+business_concept: sales.shipment_quantity
+variant: actual_so07_cloud_warehouse_outbound
+display_name: SO07社团云仓实际出库量
+aliases: [SO07云仓出库, 社团云仓实际出库, 社团云仓销售出库, SO07云仓发货量]
+business_definition: Actual completed shipment quantity attributed to SO07 sales orders shipped from active cloud warehouses. The measure is WMS shipment-detail ship_qty, not order request quantity, allocation quantity or a shipment-header row count.
+nearby_metrics_not_equivalent: [sales.outbound_actual, sales_order.so07_cloud_warehouse, inventory.so07_cloud_warehouse]
+applicability:
+  applicable_when:
+    - The user asks for actual or completed outbound quantity of SO07 orders from cloud warehouses.
+    - The user asks for SO07 cloud outbound by warehouse, SKU, date or outbound document.
+  not_applicable_when:
+    - The user asks for SO07 requested quantity, all cloud-warehouse outbound, current inventory or receipts.
+  required_signals: [so07_order, actual_outbound, cloud_warehouse]
+  negative_signals: [order_request, available_inventory, receipt_quantity, all_cloud_outbound]
+clarification:
+  ambiguity_group: so07_cloud_outbound_basis
+  question: 需要查询SO07云仓实际出库量，还是SO07云仓订单请求量？
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: cargo_owner + outbound_code + SKU + shipment date, then aggregate to the requested grain
+unit: EA from ship_qty; preserve the source unit reference when present
+time_window:
+  field: h.ship_at
+  interval: "[start_inclusive, end_exclusive)"
+  timezone: Asia/Shanghai
+formula: SUM(d.ship_qty)
+fact_table: ywzt_ods.scm_sales_shipment_detail
+quantity_field: ship_qty
+time_field: ywzt_ods.scm_sales_shipment_header.ship_at
+valid_status: [700, 900, 701, 901]
+distinct_key: outbound_code
+required_joins: [ywzt_ods.scm_sales_shipment_header.outbound_code, ywzt_ods.scm_sales_order_header.sales_order_code, ywzt_ods.master_wms.wms_code]
+exclusions: [logical_deleted, shipment_without_matching_so07_order, cloud_warehouse_mapping_conflict]
+reconciliation:
+  - Actual quantity is SUM(ship_qty); allocate_qty, request_qty and header quantity are not substitutes.
+  - Reduce shipment header to one row per company_code + outbound_code before joining detail.
+  - Attribute an outbound only when company_code + ref_order_code reaches one non-deleted SO07 sales-order header; ref_order_type alone is not sufficient.
+  - Cloud warehouse is determined from the shipment facility_code and active master_wms wms_type=12 mapping.
+  - Shipment quantity and outbound-document count must be reconciled before and after order and warehouse joins.
+  - Unmatched order links and ambiguous warehouse mappings are reported as attribution anomalies; they are not silently added to the SO07 total.
+sources:
+  required: [ywzt_ods.scm_sales_shipment_header, ywzt_ods.scm_sales_shipment_detail, ywzt_ods.scm_sales_order_header, ywzt_ods.master_wms]
+  conditional: [ywzt_ods.master_sku]
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  cargo_owner: {required: false, default: ALL, field: h.company_code}
+  sku_scope: {required: false, default: ALL, field: d.sku_code}
+  warehouse_scope: {required: false, default: ALL_CLOUD_WAREHOUSES, field: h.facility_code}
+  output_grain: {required: true, type: enum, examples: [total, ship_date, warehouse, sku, outbound]}
+filters:
+  completion_statuses: [700, 900, 701, 901]
+  so07_link: "h.company_code = so.company_code AND TRIM(h.ref_order_code) = TRIM(so.sales_order_code) AND so.order_type = 'SO07'."
+  cloud_warehouse: "h.company_code = m.cargo_owner_id AND TRIM(h.facility_code) = TRIM(m.wms_code) AND m.wms_type = '12' AND (m.status = '0' OR m.status IS NULL). Preserve wms_status for diagnostics; do not filter to one wms_status value without an approved rule."
+  logical_delete: "Exclude deleted shipment headers, shipment details and source SO07 headers."
+  no_all_cloud_fallback: "Do not answer an SO07 question with all cloud outbound facts when the order link is missing."
+  scope_defaults: "Omitted owner, SKU and warehouse scopes are ALL within the SO07 cloud-attributed facts; no previous scope is inherited."
+required_validations: [single_statement_and_read_only, business_date_semantics, source_freshness, metric_variant_resolved, control_total_reconciliation, shipment_status_and_deletion, shipment_header_non_multiplication, sales_order_non_multiplication, master_data_freshness, warehouse_mapping_integrity]
+execution: {mode: composite}
+depends_on: [sales.outbound_actual]
+dependency_versions: {sales.outbound_actual: 2.0.0}
+notes: Candidate coverage rule. This is an attributed SO07 shipment metric, not a general cloud-warehouse shipment metric. An outbound may have several SKU detail rows, so document counts are independently deduplicated and never used as quantities.
+updated_at: "2026-09-23"

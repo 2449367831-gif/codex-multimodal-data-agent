@@ -1,0 +1,32 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.master_store
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: customer_dimension
+business_key: code
+grain: one customer classification per normalized company_code and code, after identical-value deduplication
+aggregate_key: [company_code, code]
+required_deduplication: true
+freshness:
+  field: updated
+  check: Report MAX(updated) and missing timestamp count for the selected customer keys. This source modification timestamp is not an ingestion watermark; no business-approved lag threshold is available.
+  expected_lag: null
+fields:
+  company_code: {type: string, role: cargo_owner}
+  code: {type: string, role: customer_key}
+  name: {type: string, role: customer_name, nullable: true, description: "Current customer-master name; distinct from order or shipment header store_name. Metadata verified through MCP on 2026-09-10. Preserve missing/conflicting names when applying display rules."}
+  updated: {type: datetime, role: freshness, nullable: true, description: "Source modification time verified through MCP metadata on 2026-09-10; not a guaranteed synchronization timestamp."}
+  type: {type: string, role: customer_type, nullable: true, description: "Z004 online; Z001 offline; other/null/unmatched become other with missing-classification impact. Conflicts block classification."}
+  platform_code: {type: string, role: platform_code, nullable: true, description: "Online platform code; blank or unknown values must not drop shipment quantities. Metadata verified through MCP on 2026-09-10; platform families are metric-specific."}
+  group1: {type: string, role: customer_group, nullable: true, description: "03 identifies offline community platforms under the channel metric; overlaps with price_group 122 require an explicit metric policy."}
+  price_group: {type: string, role: price_group, nullable: true, description: "122 identifies offline community distribution under the channel metric, not an exclusive classification by itself. Do not infer precedence from this field."}
+  status: {type: integer, role: source_status, nullable: true, description: No status restriction is specified by the current channel rule; do not silently remove customers.}
+join_to:
+  table: ywzt_ods.scm_sales_shipment_header
+  "on": TRIM(master_store.company_code) = TRIM(scm_sales_shipment_header.company_code) AND TRIM(master_store.code) = TRIM(scm_sales_shipment_header.store_code)
+  cardinality: left join to independently deduplicated classification with nonempty owner and customer keys; never multiply or discard shipments, and never match two empty customer codes
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.master_store.yaml
+  semantic_changes_require_approval: true

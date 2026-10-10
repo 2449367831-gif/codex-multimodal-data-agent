@@ -1,0 +1,66 @@
+contract_schema_version: 1.0.0
+id: dms.points_redemption
+version: 1.0.0
+status: verified_template
+business_concept: dms.points_redemption_quantity
+variant: paid_points_order_product
+display_name: DMS积分兑换数量
+aliases: [DMS积分兑换, 积分兑换数量, 积分兑换商品数量]
+business_definition: The quantity of a registered product redeemed through paid DMS points orders, grouped by the order payment month and measured in the source minimum sales unit.
+nearby_metrics_not_equivalent: [sales.outbound_actual, dms.points_order_requested_quantity, dms.points_redemption_order_count]
+applicability:
+  applicable_when:
+    - The user explicitly names DMS and asks for a points redemption quantity.
+    - The user names a registered product alias and a bounded month interval.
+  not_applicable_when:
+    - The user asks for ordinary sales outbound, inventory, or an order-request quantity.
+    - The product alias, payment interval, or points-order basis is not determinable from the current request.
+  required_signals: [dms_source, points_redemption, registered_product, payment_month]
+  negative_signals: [sales_outbound, inventory_quantity, requested_quantity, shipment_completion_date]
+clarification:
+  ambiguity_group: dms_points_product_and_period
+  question: 请选择DMS积分兑换的商品和付款月份范围。
+validity:
+  effective_from: '2026-09-03T00:00:00+08:00'
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: live_reconciled
+  approved_by: null
+  approved_at: null
+grain: payment_month + SKU after one current order header and one current product line per logical key
+unit: EA (displayed as the product unit, 台 for the registered air-fryer alias)
+time_window:
+  field: o.paid_time
+  interval: '[start_inclusive, end_exclusive)'
+  boundary_policy: Asia/Shanghai payment-time boundaries
+  timezone: Asia/Shanghai
+formula: SUM(d.bag_quantity)
+sources:
+  required:
+    - dms_ods.t_sales_order
+    - dms_ods.t_sales_order_detail
+parameters:
+  start_inclusive: {required: true, type: datetime}
+  end_exclusive: {required: true, type: datetime}
+  product_code: {required: true, type: string, sku_field: d.sku_code}
+  output_grain: {required: true, examples: [total, payment_month, sku]}
+filters:
+  order_type: SO16
+  points_order_flag: is_points_order = 1
+  paid_status: '1'
+  excluded_order_statuses: ['0', '100', '107', '108', '199']
+  excluded_after_sales: order_status = 101 AND after_sales_status = 107
+  product_line_type: item_type = 2
+  logical_delete: Exclude numeric and CDC logically deleted headers and detail lines after latest-version resolution
+  quantity_basis: Filter item_type = 2 product lines before latest-version resolution; sum bag_quantity as the minimum sales unit; never join item_type 3 settlement duplicates
+  product_mapping: The air-fryer alias is explicitly registered as SKU 8030101; user text is never interpolated into SQL
+required_validations: [single_statement_and_read_only, source_freshness, business_date_semantics, metric_variant_resolved, metric_validation_isolation, control_total_reconciliation, sales_order_non_multiplication, dms_points_order_validity, dms_points_detail_non_multiplication]
+execution:
+  mode: sql_template
+  template: sql_templates/dms.points_redemption.sql
+template: sql_templates/dms.points_redemption.sql
+notes: This candidate was live-reconciled against the DMS source on 2026-09-03. Production routing still requires business approval; the deterministic runtime may execute only the registered air-fryer alias until additional aliases receive the same contract and tests.
+updated_at: '2026-09-03'

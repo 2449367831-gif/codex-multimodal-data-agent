@@ -1,0 +1,23 @@
+suite_schema_version: 1.0.0
+suite_id: dms.metric_routing
+version: 1.0.0
+status: candidate
+cases:
+  - id: route.points_redemption.air_fryer_month_range
+    test_level: end_to_end
+    question: 看下dms的1-8月积分兑换的空气炸锅有多少
+    context: {now: '2026-09-03T09:00:00+08:00', previous_request: null, explicit_profile_id: null}
+    expected:
+      action: route
+      metric_id: dms.points_redemption
+      metric_version: 1.0.0
+      profile_id: null
+      parameters:
+        start_inclusive: '2026-01-01T00:00:00+08:00'
+        end_exclusive: '2026-09-01T00:00:00+08:00'
+        product_code: '8030101'
+        output_grain: payment_month
+      must_not_inherit: [cargo_owner, warehouse_scope, sku_scope, channel]
+      forbidden_metric_ids: [sales.outbound_actual, inventory.available_realtime]
+    tags: [positive, dms, points_redemption, month_range]
+    rationale: Explicit DMS, points-redemption, registered air-fryer, and month-range signals select the dedicated payment-month contract.

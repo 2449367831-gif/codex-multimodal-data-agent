@@ -1,0 +1,53 @@
+contract_schema_version: 1.0.0
+id: inventory.snapshot_quantity
+version: 1.0.0
+status: verified_template
+business_concept: inventory.quantity
+variant: historical_snapshot_gross
+display_name: 历史库存快照数量
+aliases: [历史库存快照, 指定日库存, 库存快照数量, 库存快照]
+business_definition: Inventory quantity in the requested historical snapshot. It does not include transit unless a separate composite metric explicitly requests it.
+applicability:
+  applicable_when:
+    - The user explicitly asks for inventory on an exact historical snapshot date.
+    - The requested value is the snapshot in-stock quantity, not current available inventory.
+  not_applicable_when:
+    - The user asks for current available inventory or a nearest-date fallback.
+    - The user asks for transit or production-date inventory.
+  required_signals: [historical_or_exact_date, snapshot_inventory]
+  negative_signals: [current_available, transit, nearest_date_fallback]
+clarification:
+  ambiguity_group: inventory_quantity_basis
+  question: 请确认要查当前可用库存，还是指定日期的历史库存快照；如查历史，请提供准确日期。
+validity:
+  effective_from: null
+  effective_to: null
+  supersedes: []
+approval:
+  business_owner: unassigned
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: snapshot_date + cargo_owner + warehouse + SKU
+unit: EA
+time_window:
+  field: backups_date
+  interval: exact_snapshot_date
+formula: SUM(in_stock_quantity)
+sources:
+  required:
+    - ywzt_ods.scm_warehous_manage_backups
+parameters:
+  snapshot_date: {required: true, type: date}
+  cargo_owner: {required: false, default: ALL, snapshot_field: cargo_owner_id}
+  sku_scope: {required: false, default: ALL, snapshot_field: sku_code}
+  warehouse_scope: {required: false, default: ALL, snapshot_field: wms_code}
+  output_grain: {required: true, examples: [total, warehouse, sku, warehouse_sku]}
+required_validations: [single_statement_and_read_only, snapshot_date_exists]
+execution:
+  mode: sql_template
+  template: sql_templates/inventory.snapshot_quantity.sql
+template: sql_templates/inventory.snapshot_quantity.sql
+notes: A missing requested date is blocked. Do not silently use the nearest backup date.
+updated_at: "2026-08-28"

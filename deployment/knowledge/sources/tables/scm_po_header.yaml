@@ -1,0 +1,23 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_po_header
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: purchase_order_header_for_inventory_transit
+grain: purchase order header
+aggregate_key: [po_code]
+freshness: {field: updated_date, check: source updated_date must be within the approved 48h freshness window, expected_lag: 48h}
+fields:
+  po_code: {type: string, role: purchase_order_key}
+  cargo_owner_id: {type: string, role: cargo_owner}
+  take_delivery_wms: {type: string, role: warehouse_key}
+  order_status: {type: string, role: status}
+  updated_date: {type: datetime, role: freshness_timestamp}
+join_to:
+  table: ywzt_ods.scm_po_detail
+  "on": h.po_code = d.po_code
+  cardinality: one_to_many
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_po_header.yaml
+  semantic_changes_require_approval: true

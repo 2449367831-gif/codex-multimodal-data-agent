@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.data-agent/schemas/source-table.schema.json",
+  "title": "Doris source table contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_schema_version", "id", "version", "status", "source_id", "role", "grain", "fields", "metadata_sync"],
+  "properties": {
+    "contract_schema_version": {"const": "1.0.0"},
+    "id": {"type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*\\.[a-zA-Z_][a-zA-Z0-9_]*$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"},
+    "status": {"enum": ["declared", "candidate", "active", "deprecated", "retired"]},
+    "source_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "role": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "business_key": {
+      "oneOf": [
+        {"type": "string"},
+        {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}
+      ]
+    },
+    "grain": {"type": "string", "minLength": 3},
+    "aggregate_key": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "required_deduplication": {"type": "boolean"},
+    "lookup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["business_definition", "name_field", "scope", "time_window", "unit", "exclusions", "reconciliation", "type_labels", "node_labels"],
+      "properties": {
+        "business_definition": {"type": "string"},
+        "name_field": {"type": "string"},
+        "scope": {"type": "string"},
+        "time_window": {"type": "string"},
+        "unit": {"type": "string"},
+        "exclusions": {"type": "array", "items": {"type": "string"}},
+        "reconciliation": {"type": "array", "items": {"type": "string"}},
+        "type_labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "node_labels": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "check"],
+      "properties": {
+        "field": {"type": "string"},
+        "check": {"type": "string"},
+        "expected_lag": {"type": ["string", "null"]}
+      }
+    },
+    "join_to": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "on", "cardinality"],
+      "properties": {
+        "table": {"type": "string"},
+        "on": {"type": "string"},
+        "cardinality": {"type": "string"}
+      }
+    },
+    "fields": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "role"],
+          "properties": {
+            "type": {"type": "string"},
+            "role": {"type": "string"},
+            "nullable": {"type": "boolean"},
+            "virtual": {"type": "boolean"},
+            "description": {"type": "string"}
+          }
+      }
+    },
+    "metadata_sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "observations_path", "semantic_changes_require_approval"],
+      "properties": {
+        "mode": {"const": "compare_only"},
+        "observations_path": {"type": "string"},
+        "semantic_changes_require_approval": {"const": true},
+        "key_quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "lookback_days"],
+          "properties": {
+            "enabled": {"const": true},
+            "lookback_days": {"type": "integer", "minimum": 1, "maximum": 3650}
+          }
+        }
+      }
+    }
+  }
+}

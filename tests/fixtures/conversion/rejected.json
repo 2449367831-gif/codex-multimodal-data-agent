@@ -1,0 +1,1 @@
+{"sql":"SELECT UNKNOWN AS value, :quantity AS qty","bindings":{"quantity":0.1234567890123456789},"table_mapping":{}}

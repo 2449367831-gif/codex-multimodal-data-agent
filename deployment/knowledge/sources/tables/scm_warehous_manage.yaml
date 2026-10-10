@@ -1,0 +1,30 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_warehous_manage
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: realtime_inventory
+grain: inventory record; aggregate before joining occupation
+aggregate_key: [cargo_owner_id, wms_code, sku_code]
+freshness:
+  field: stock_change_time
+  check: MAX(stock_change_time)
+fields:
+  cargo_owner_id: {type: string, role: cargo_owner}
+  wms_code: {type: string, role: warehouse_key}
+  sku_code: {type: string, role: sku_key}
+  in_stock_quantity: {type: decimal, role: in_stock}
+  allot_quantity: {type: decimal, role: allocation}
+  lock_quantity: {type: decimal, role: lock}
+  stock_lock: {type: string, role: quality_report_lock, description: VARCHAR verified through information_schema; distinct from lock_quantity. Parse only bounded decimal strings in the selected component contract.}
+  freeze_quantity: {type: decimal, role: freeze}
+  move_in_quantity: {type: decimal, role: move_in}
+  actual_quantity: {type: decimal, role: actual_available_ea}
+  move_out_quantity: {type: decimal, role: move_out}
+  status: {type: string, role: record_status}
+  inventory_status: {type: string, role: quality_status}
+  stock_change_time: {type: datetime, role: freshness}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_warehous_manage.yaml
+  semantic_changes_require_approval: true

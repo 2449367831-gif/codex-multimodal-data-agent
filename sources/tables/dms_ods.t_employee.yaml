@@ -1,0 +1,28 @@
+contract_schema_version: 1.0.0
+id: dms_ods.t_employee
+version: 1.0.0
+status: candidate
+source_id: doris_ywzt_ods
+role: dms_employee_dimension
+business_key: employee_id
+grain: One current unambiguous employee attribute tuple per employee_id after version resolution
+aggregate_key: [employee_id]
+required_deduplication: true
+freshness:
+  field: update_time
+  check: Require a nonmissing current source modification timestamp for each matched employee; two equal complete reads detect observed changes, not ingestion completeness or an atomic snapshot
+  expected_lag: department-defined
+join_to:
+  table: dms_ods.t_sales_order
+  "on": Strict signed-BIGINT text normalization of t_sales_order.owner_manager equals the string representation of t_employee.employee_id
+  cardinality: many order references to at most one resolved employee; preserve unmatched orders
+fields:
+  employee_id: {type: integer, role: employee_key, nullable: true, description: Physical BIGINT verified through MCP metadata on 2026-09-10}
+  actual_name: {type: string, role: employee_display_name, nullable: false, description: Current employee name; never used as customer name}
+  deleted_flag: {type: integer, role: logical_delete_flag, nullable: false, description: 'Physical INT; 0 active record and 1 deleted record, evaluated after current-version resolution'}
+  update_time: {type: datetime, role: updated_at, nullable: false, description: 'Physical DATETIME; current version discriminator, not an ingestion watermark'}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/dms_ods.t_employee.yaml
+  semantic_changes_require_approval: true
+  key_quality: {enabled: true, lookback_days: 3650}

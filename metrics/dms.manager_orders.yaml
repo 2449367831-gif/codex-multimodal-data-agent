@@ -1,0 +1,60 @@
+contract_schema_version: 1.0.0
+id: dms.manager_orders
+version: 1.0.0
+status: candidate
+business_concept: dms.order_count
+variant: creation_date_native_province_current_manager
+display_name: DMS sales orders by city manager
+aliases: [DMS city manager orders, DMS orders by province and customer]
+business_definition: Count distinct current DMS sales order headers by creation date, native order province, resolved current city manager and historical order-header customer attributes. Missing manager or customer attributes retain the order.
+nearby_metrics_not_equivalent: [dms_points_orders_only, paid_order_count, actual_wms_shipments, province_city_organization_fallback, historical_employee_name]
+applicability:
+  applicable_when: [DMS sales order counts by date, native province, current manager and order-header customer are requested.]
+  not_applicable_when: [A different date axis, geographic organization fallback, historical manager snapshot, employee-derived customer name or quantity measure is requested.]
+clarification:
+  ambiguity_group: dms_order_enrichment_variant
+  question: Use the native order province and current manager labels or a separately reviewed organization and historical-name mapping?
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: creation_date + native province_department_name + manager identity and match state + customer_code + customer_name; count distinct sales_order_code
+unit: Orders; neither order detail rows nor EA or boxes
+time_window:
+  mode: order_creation_interval
+  field: created_time
+  timezone: Asia/Shanghai
+  interval: Left-closed right-open local midnight boundaries when dates are supplied
+  omitted: ALL available creation dates; no inherited date, owner, warehouse, SKU, customer or manager restrictions
+  freshness_field: updated_time
+formula: Resolve current order headers, deduplicate order identity, enrich each order once through the reviewed employee lookup and count by the declared group key. Reconcile returned groups to independent pre-join order controls; retain an order-evidence mode for bounded validation.
+sources:
+  required: [dms_ods.t_sales_order, dms_ods.t_employee]
+parameters:
+  start: {required: false, type: date, description: Inclusive creation-date bound paired with end}
+  end: {required: false, type: date, description: Exclusive creation-date bound paired with start}
+  customer_codes: {required: false, description: Exact current-order customer codes; preserve case and leading zeros}
+  order_codes: {required: false, description: Exact sales order codes; preserve case and leading zeros}
+filters:
+  current_order: Resolve DENSE_RANK by trimmed sales_order_code then updated_time DESC NULLS LAST, version DESC NULLS LAST and id DESC before business or scope predicates. Collapse identical projected tuples; a conflicting top tuple touching the requested candidates stops presentation.
+  deletion: Exclude deleted_flag 1 and CDC true/1 after ranking. NULL deleted_flag follows the existing header contract as zero. Unknown numeric or CDC deletion states touching scope are errors, not silent exclusions.
+  no_inherited_filters: No is_points_order, SO16, paid_status, WMS completion, product, owner, warehouse or channel predicate is introduced by this variant. Explicit unsupported scopes must not be silently ignored by a future route.
+  date: Use created_time rather than paid_time or shipment time. Missing creation dates touching scope stop presentation because a date group cannot be established.
+  province: Use NULLIF(TRIM(t_sales_order.province_department_name),'') and preserve missing values. This is not T27 geography matching.
+  customer: Use code and name directly from the current order header. Preserve missing values and different historical names as separate groups; never infer a customer name from employee data.
+  manager: Join distinct raw scoped owner_manager references to the employee dependency. The order pipeline derives its full reference set in SQL; the standalone literal lookup's 200-reference budget never limits the order scope.
+  grouping: Canonical numeric manager identity groups alternate spellings of one employee. Unresolved valid or invalid references retain their own key and diagnostic state. Empty references normalize to a missing key. Employee name is a label, never the identity.
+  missing_manager: Count every order whose employee state is not matched, including missing, deleted, invalid and conflicting employee records. Do not substitute a distinct-reference count for missing-manager order count.
+  freshness: Report the latest source modification timestamp and missing order timestamps. Employee source tuples require update_time. Modification timestamps do not establish synchronization completeness or historically effective employee names.
+  reconciliation: Server-side groups reconcile to pre-join distinct-order controls, per-group missing modification counts and freshness, repeated manager observations, company missing-attribute counts and complete group controls. Synthetic order-evidence tests independently regroup every order; the live reference aggregates order headers by raw manager first and joins employee observations in Python. Two full matching reads detect observed changes, not atomic snapshot isolation.
+  output_mode: User summaries return grouped rows plus a control row; no raw-order volume limit is misapplied to the requested summary. The optional order-evidence mode has its own bounded whole-result check and cannot be claimed complete after truncation.
+  budgets: Existing bounded pages, 100000-row and 64-MiB whole-report budgets and 180-second timeout remain. Exceeding a budget is explicit truncation or timeout, not a partial result labeled complete.
+required_validations: [single_statement_and_read_only, metric_variant_resolved, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: [dms.city_manager]
+dependency_versions: {dms.city_manager: 1.0.0}
+notes: T26 candidate. Requires independent live verification, scalable full-scope acceptance and running-chat/screened-table integration before publication. T27 geography logic remains separate and is a blocked candidate until a reviewed organization source contract defines fully qualified province/city fields, effective-row and logical-delete rules, approved normalization (including Xizang/Tibet variants), duplicate-match reconciliation, and unmatched-row handling. Never reuse province_department_name as an organization match or silently route T27 to T26.
+updated_at: "2026-09-10"

@@ -1,0 +1,37 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_sales_order_detail
+version: 1.0.0
+status: declared
+source_id: doris_ywzt_ods
+role: sales_order_detail
+business_key: id
+aggregate_key: [company_code, sales_order_code, id]
+grain: One physical sales-order detail line after active-detail filtering; request_qty is an order request measure, not a shipped measure.
+required_deduplication: true
+freshness:
+  field: updated
+  check: MAX(updated) is source-change time only; it is not a Doris ingestion watermark.
+join_to:
+  table: ywzt_ods.scm_sales_order_header
+  "on": d.company_code = h.company_code AND d.sales_order_code = h.sales_order_code
+  cardinality: many_to_one_after_header_uniqueness_check
+fields:
+  id: {type: varchar, role: physical_key, nullable: false}
+  sales_order_id: {type: varchar, role: header_physical_key}
+  sales_order_code: {type: varchar, role: business_key, nullable: false}
+  company_code: {type: varchar, role: cargo_owner, nullable: false}
+  facility_code: {type: varchar, role: warehouse_key}
+  sku_code: {type: varchar, role: sku_key, nullable: false}
+  sku_name: {type: varchar, role: detail_display_name}
+  request_qty: {type: decimal, role: requested_quantity, description: Quantity requested on the order; never label as actual outbound.}
+  ship_qty: {type: decimal, role: shipped_quantity, description: "Auxiliary shipment measure, not used by the SO07 order route."}
+  allocated_qty: {type: decimal, role: allocated_quantity}
+  status: {type: integer, role: logical_status, description: Candidate order-quantity route retains active detail status 0; name provenance separately inspects all non-ETL-deleted detail statuses. Type confirmed by source metadata; this does not approve request_qty units.}
+  created: {type: datetime, role: source_create_time}
+  updated: {type: datetime, role: source_change_time}
+  _fdl_marked_deleted: {type: varchar, role: logical_delete}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_sales_order_detail.yaml
+  semantic_changes_require_approval: true
+  key_quality: {enabled: true, lookback_days: 30}

@@ -1,0 +1,52 @@
+contract_schema_version: 1.0.0
+id: dms.city_manager
+version: 1.0.0
+status: candidate
+business_concept: dms.employee_lookup
+variant: current_unambiguous_employee
+display_name: DMS city manager lookup
+aliases: [DMS city manager, DMS employee reference]
+business_definition: Resolve order-header owner_manager references against employee_id and display actual_name without removing or multiplying order references. This helper is not an order-count metric.
+nearby_metrics_not_equivalent: [customer_display_name, historical_employee_name, province_organization_mapping, dms_order_count]
+applicability:
+  applicable_when: [A reviewed DMS order query requires current city-manager labels for its own bounded set of owner_manager references.]
+  not_applicable_when: [Historical as-of employee names, customer identities, organization geography or standalone employee directories are requested.]
+clarification:
+  ambiguity_group: dms_employee_time
+  question: Use current employee names or a separately verified historical employee-name snapshot?
+validity: {effective_from: null, effective_to: null, supersedes: []}
+approval:
+  business_owner: department_business_owner
+  state: pending_business_approval
+  validation_level: static_contract_and_template
+  approved_by: null
+  approved_at: null
+grain: Exactly one result per distinct raw owner_manager reference in the current request; different raw spellings can resolve to the same numeric employee identity
+unit: Reference count and employee source-record count; no EA, boxes or order quantities
+time_window:
+  mode: current_employee_snapshot
+  timezone: Asia/Shanghai
+  freshness_field: update_time
+  interval: Current employee attributes only; do not claim names effective at order creation
+  omitted: No order date restriction is introduced by this lookup
+formula: Resolve strict employee identity, select all newest source rows, collapse identical attribute tuples, then classify match quality and left join each requested reference
+sources:
+  required: [dms_ods.t_employee, dms_ods.t_sales_order]
+parameters:
+  manager_references: {required: true, description: At most 200 unique raw nullable string references per bounded request; derive from the current order scope only}
+filters:
+  identity: Trim ASCII spaces only; accept optional sign and ASCII decimal digits within signed BIGINT limits. Leading zeros normalize numerically because employee_id is BIGINT. Never apply this normalization to customer or SKU codes.
+  invalid_identity: Preserve null, empty, malformed and out-of-range references with explicit states; never rely on permissive numeric casts that can match employee zero.
+  current_version: DENSE_RANK by employee_id and update_time descending, before deletion or name filtering. Identical newest attribute tuples collapse; differing tuples at the same newest timestamp remain a conflict, not arbitrary MIN selection.
+  deletion: The unique newest tuple must have deleted_flag 0 to display a name. Deleted, invalid-state and missing-name tuples remain unresolved references, not older active-name fallbacks.
+  employee_status: Do not add disabled_flag, employee_status, employee_type, department or employment-status filters; these are not part of the requested join.
+  projection: Read only employee_id, actual_name, deleted_flag and update_time. Never read employee credentials or unrelated personal fields.
+  source_timestamps: A resolved source tuple requires a valid update_time. Source modification time does not prove synchronized completeness.
+  reconciliation: Require exact raw references and ordinals, signed identity equivalence, constant full row count, consistent missing/unique/conflicting states, source counts and timestamps, plus two matching complete scans. Unresolved names remain null.
+  order_caller: A future caller must retain every order, use customer_name from the order header, deduplicate sales_order_code before counts, and count missing-manager orders rather than only missing reference keys.
+required_validations: [single_statement_and_read_only, metric_variant_resolved, source_freshness, control_total_reconciliation]
+execution: {mode: composite}
+depends_on: []
+dependency_versions: {}
+notes: Candidate foundation for T26. The full order-scope compiler, province variant, aggregate reconciliation, chat integration and screened UI remain unaccepted. No released route is changed by this candidate.
+updated_at: "2026-09-10"

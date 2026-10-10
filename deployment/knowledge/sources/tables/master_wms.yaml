@@ -1,0 +1,52 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.master_wms
+version: 1.1.0
+status: declared
+source_id: doris_ywzt_ods
+role: warehouse_hierarchy_dimension
+business_key: wms_code
+grain: one active warehouse mapping row after owner and code deduplication
+aggregate_key: [cargo_owner_id, wms_code]
+required_deduplication: true
+lookup:
+  business_definition: Current warehouse directory; literal name matching retrieves every matching owner/code mapping, not a fixed operating-center alias.
+  name_field: wms_desc
+  scope: ALL owners and warehouse types unless explicitly selected. Warehouse owner is not inferred from a brand name inside a warehouse name.
+  time_window: Not applicable to directory membership. updated_date is a source-change timestamp, not an order date or ingestion watermark.
+  unit: warehouse mapping record
+  exclusions:
+    - Exclude rows whose normalized logical status is not 0; missing logical status follows the existing mapping contract and is treated as 0.
+    - Do not apply the report-specific wms_status=10 or cloud-only wms_type=12 filter to a directory request.
+  reconciliation:
+    - Deduplicate identical owner/code/name/type/node records; detect distinct mapping variants before name filtering.
+    - Keep cargo_owner_id in the key; never collapse different owners or join fact tables by warehouse name.
+    - Returned mapping count must match the unbounded matching set count; row caps never mean a complete directory.
+    - Empty results mean query succeeded with no matching warehouse. Missing labels and freshness remain explicit.
+  type_labels: {'12': 云仓}
+  node_labels: {'10': 经营中心}
+freshness:
+  field: updated_date
+  check: MAX(updated_date) for the selected cargo owner
+  expected_lag: 72h
+fields:
+  cargo_owner_id: {type: string, role: cargo_owner, nullable: false, description: Warehouse owner used to prevent cross-owner joins.}
+  wms_code: {type: string, role: warehouse_key, nullable: false, description: Stable warehouse code.}
+  wms_desc: {type: string, role: display_name, nullable: false, description: Warehouse display name.}
+  wms_node: {type: string, role: hierarchy_node, nullable: true, description: 10 is the center layer; 12/13/14 are governed subwarehouse or cloud nodes in the reviewed profile. A node-10 row remains an independent center even if source parent fields are blank or stale.}
+  wms_type: {type: string, role: warehouse_type, nullable: true, description: Source warehouse type; never used alone to infer hierarchy.}
+  belonging_center: {type: string, role: explicit_parent_code, nullable: true, description: Explicit parent center code.}
+  senior_wms: {type: string, role: fallback_parent_code, nullable: true, description: Source-system senior parent code.}
+  wms_status: {type: string, role: warehouse_status, nullable: true, description: 10 is the active mapping status in this report profile.}
+  status: {type: string, role: logical_status, nullable: true, description: Source logical status.}
+  updated_date: {type: datetime, role: freshness, nullable: true, description: Mapping update timestamp.}
+join_to:
+  table: ywzt_ods.scm_warehous_manage
+  "on": w.cargo_owner_id = i.cargo_owner_id AND w.wms_code = TRIM(i.wms_code)
+  cardinality: one_to_many
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.master_wms.yaml
+  semantic_changes_require_approval: true
+  key_quality:
+    enabled: true
+    lookback_days: 30

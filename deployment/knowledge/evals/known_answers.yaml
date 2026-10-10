@@ -1,0 +1,26 @@
+suite_id: known_answers
+version: 1.0.0
+status: active
+timezone: Asia/Shanghai
+cases:
+  - id: sales_outbound_contract
+    question: 昨天各仓库实际销售出库量
+    expected_metric: sales.outbound_actual@2.0.0
+    expected_quantity_field: ship_qty
+    expected_date_field: scm_sales_shipment_header.ship_at
+    expected_statuses: [700, 900, 701, 901]
+    expected_unit: EA
+    expected_distinct_key: outbound_code
+  - id: sales_outbound_7_complete_days
+    question: 最近7个完整自然日各仓库实际销售出库
+    expected_date_semantics: exclude_today
+  - id: inventory_current_components
+    question: 当前库存及销售占用、调拨占用、采购在途、调拨在途
+    expected_scope: ALL
+    required_reconciliation: true
+  - id: purchase_inbound
+    question: 采购入库按仓库和生产日期汇总
+    expected_inbound_type: "10"
+  - id: dms_points
+    question: 昨天DMS积分兑换订单
+    expected_logical_delete_only: true

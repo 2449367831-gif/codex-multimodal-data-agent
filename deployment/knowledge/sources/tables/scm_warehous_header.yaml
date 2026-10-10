@@ -1,0 +1,32 @@
+contract_schema_version: 1.0.0
+id: ywzt_ods.scm_warehous_header
+version: 1.0.0
+status: candidate
+source_id: doris_ywzt_ods
+role: inbound_receipt_header
+business_key: warehous_code
+aggregate_key: [cargo_owner_id, warehous_code]
+grain: One receipt header per cargo_owner_id and warehous_code after identical relevant-attribute deduplication; conflicting variants must not be silently selected.
+required_deduplication: true
+freshness:
+  field: updated_date
+  check: MAX(updated_date) is source-change time only; actual_arrival_date is a business event, neither proves ingestion freshness.
+join_to:
+  table: ywzt_ods.scm_warehous_detail
+  "on": h.cargo_owner_id = d.cargo_owner_id AND h.warehous_code = d.warehous_code
+  cardinality: one_to_many_after_header_uniqueness_check
+fields:
+  id: {type: varchar, role: physical_key}
+  cargo_owner_id: {type: varchar, role: cargo_owner, nullable: false}
+  warehous_code: {type: varchar, role: receipt_key, nullable: false}
+  po_order_code: {type: varchar, role: purchase_order_reference, description: Nonblank is the explicit T03 test variant; it is not interchangeable with warehous_type=10.}
+  warehous_type: {type: varchar, role: inbound_type, description: Historical receipt reports map 10 to purchase and 11 to transfer; conflicts with purchase-reference classification require an explicit variant.}
+  actual_arrival_date: {type: datetime, role: actual_receipt_time}
+  status: {type: varchar, role: logical_status, description: The candidate receipt-detail view retains 0; this is not approval or receipt-completion status.}
+  _fdl_marked_deleted: {type: varchar, role: logical_delete}
+  updated_date: {type: datetime, role: source_change_time}
+metadata_sync:
+  mode: compare_only
+  observations_path: observations/tables/ywzt_ods.scm_warehous_header.yaml
+  semantic_changes_require_approval: true
+  key_quality: {enabled: true, lookback_days: 30}

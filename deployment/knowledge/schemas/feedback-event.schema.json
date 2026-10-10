@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.data-agent/schemas/feedback-event.schema.json",
+  "title": "Knowledge feedback event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["feedback_schema_version", "event_id", "event_type", "created_at", "query_audit_id", "knowledge_release_id", "metric_ref", "payload", "review_state"],
+  "properties": {
+    "feedback_schema_version": {"const": "1.0.0"},
+    "event_id": {"type": "string", "minLength": 8},
+    "event_type": {"enum": ["route_correction", "parameter_correction", "metric_definition_dispute", "reconciliation_failure", "accepted_answer", "source_change_detected"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "query_audit_id": {"type": "string", "minLength": 1},
+    "knowledge_release_id": {"type": "string", "minLength": 1},
+    "metric_ref": {"type": ["string", "null"], "pattern": "^[a-z0-9_.]+@[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "payload": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["summary"],
+      "properties": {"summary": {"type": "string", "minLength": 3}}
+    },
+    "review_state": {"enum": ["unreviewed", "confirmed", "rejected", "promoted_to_candidate"]}
+  }
+}
